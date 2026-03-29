@@ -36,7 +36,7 @@ export function isAdmin() {
   let user = localStorage.getItem('user');
   if (!user) return false;
   user = JSON.parse(user);
-  return user.role >= 10;
+  return user.role >= 2;
 }
 
 export function isRoot() {

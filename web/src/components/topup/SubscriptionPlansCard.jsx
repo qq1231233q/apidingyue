@@ -34,6 +34,7 @@ import { API, showError, showSuccess, renderQuota } from '../../helpers';
 import { getCurrencyConfig } from '../../helpers/render';
 import { RefreshCw, Sparkles } from 'lucide-react';
 import SubscriptionPurchaseModal from './modals/SubscriptionPurchaseModal';
+import RedeemSubscriptionCodeModal from './modals/RedeemSubscriptionCodeModal';
 import {
   formatSubscriptionDuration,
   formatSubscriptionResetPeriod,
@@ -89,6 +90,7 @@ const SubscriptionPlansCard = ({
   const [paying, setPaying] = useState(false);
   const [selectedEpayMethod, setSelectedEpayMethod] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [showRedeemModal, setShowRedeemModal] = useState(false);
 
   const epayMethods = useMemo(() => getEpayMethods(payMethods), [payMethods]);
 
@@ -306,6 +308,14 @@ const SubscriptionPlansCard = ({
             <div className='flex items-center justify-between mb-2 gap-3'>
               <div className='flex items-center gap-2 flex-1 min-w-0'>
                 <Text strong>{t('我的订阅')}</Text>
+                <Button
+                  size='small'
+                  theme='light'
+                  type='tertiary'
+                  onClick={() => setShowRedeemModal(true)}
+                >
+                  {t('兑换激活码')}
+                </Button>
                 {hasActiveSubscription ? (
                   <Tag
                     color='white'
@@ -498,6 +508,9 @@ const SubscriptionPlansCard = ({
                 const upgradeLabel = plan?.upgrade_group
                   ? `${t('升级分组')}: ${plan.upgrade_group}`
                   : null;
+                const availableGroupLabel = plan?.available_group
+                  ? `${t('可用分组')}: ${plan.available_group}`
+                  : null;
                 const resetLabel =
                   formatSubscriptionResetPeriod(plan, t) === t('不重置')
                     ? null
@@ -513,6 +526,7 @@ const SubscriptionPlansCard = ({
                         tooltip: `${t('原生额度')}：${totalAmount}`,
                       }
                     : { label: totalLabel },
+                  availableGroupLabel ? { label: availableGroupLabel } : null,
                   limitLabel ? { label: limitLabel } : null,
                   upgradeLabel ? { label: upgradeLabel } : null,
                 ].filter(Boolean);
@@ -676,6 +690,17 @@ const SubscriptionPlansCard = ({
         onPayStripe={payStripe}
         onPayCreem={payCreem}
         onPayEpay={payEpay}
+      />
+
+      {/* 兑换激活码弹窗 */}
+      <RedeemSubscriptionCodeModal
+        visible={showRedeemModal}
+        onClose={() => setShowRedeemModal(false)}
+        onSuccess={async () => {
+          setShowRedeemModal(false);
+          await reloadSubscriptionSelf?.();
+        }}
+        t={t}
       />
     </>
   );

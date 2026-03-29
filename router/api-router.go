@@ -280,6 +280,22 @@ func SetApiRouter(router *gin.Engine) {
 			redemptionRoute.DELETE("/invalid", controller.DeleteInvalidRedemption)
 			redemptionRoute.DELETE("/:id", controller.DeleteRedemption)
 		}
+
+		// Subscription codes (activation codes for subscription plans)
+		subscriptionCodeRoute := apiRouter.Group("/subscription_code")
+		subscriptionCodeRoute.Use(middleware.AdminAuth())
+		{
+			subscriptionCodeRoute.GET("/", controller.GetAllSubscriptionCodes)
+			subscriptionCodeRoute.GET("/search", controller.SearchSubscriptionCodes)
+			subscriptionCodeRoute.GET("/:id", controller.GetSubscriptionCode)
+			subscriptionCodeRoute.POST("/", controller.AddSubscriptionCode)
+			subscriptionCodeRoute.PUT("/", controller.UpdateSubscriptionCode)
+			subscriptionCodeRoute.DELETE("/invalid", controller.DeleteInvalidSubscriptionCodes)
+			subscriptionCodeRoute.DELETE("/:id", controller.DeleteSubscriptionCode)
+		}
+
+		// User subscription code redemption
+		apiRouter.POST("/subscription_code/redeem", middleware.UserAuth(), controller.RedeemSubscriptionCode)
 		logRoute := apiRouter.Group("/log")
 		logRoute.GET("/", middleware.AdminAuth(), controller.GetAllLogs)
 		logRoute.DELETE("/", middleware.AdminAuth(), controller.DeleteHistoryLogs)

@@ -168,6 +168,9 @@ type SubscriptionPlan struct {
 	// Upgrade user group after purchase (empty = no change)
 	UpgradeGroup string `json:"upgrade_group" gorm:"type:varchar(64);default:''"`
 
+	// Available group for subscription (subscription quota can only be used for models in this group)
+	AvailableGroup string `json:"available_group" gorm:"type:varchar(64);default:''"`
+
 	// Total quota (amount in quota units, 0 = unlimited)
 	TotalAmount int64 `json:"total_amount" gorm:"type:bigint;not null;default:0"`
 
@@ -249,6 +252,7 @@ type UserSubscription struct {
 
 	UpgradeGroup  string `json:"upgrade_group" gorm:"type:varchar(64);default:''"`
 	PrevUserGroup string `json:"prev_user_group" gorm:"type:varchar(64);default:''"`
+	AvailableGroup string `json:"available_group" gorm:"type:varchar(64);default:\'\'"`
 
 	CreatedAt int64 `json:"created_at" gorm:"bigint"`
 	UpdatedAt int64 `json:"updated_at" gorm:"bigint"`
@@ -495,6 +499,7 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 		NextResetTime: nextReset,
 		UpgradeGroup:  upgradeGroup,
 		PrevUserGroup: prevGroup,
+		AvailableGroup: plan.AvailableGroup,
 		CreatedAt:     common.GetTimestamp(),
 		UpdatedAt:     common.GetTimestamp(),
 	}
@@ -952,6 +957,21 @@ func maybeResetUserSubscriptionWithPlanTx(tx *gorm.DB, sub *UserSubscription, pl
 	return tx.Save(sub).Error
 }
 
+// isModelInGroup checks if a model belongs to a specific group
+func isModelInGroup(modelName string, group string) (bool, error) {
+	if strings.TrimSpace(group) == "" || strings.TrimSpace(modelName) == "" {
+		return false, nil
+	}
+	var count int64
+	err := DB.Model(&Ability{}).
+		Where(commonGroupCol+" = ? AND model = ? AND enabled = ?", group, modelName, true).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // PreConsumeUserSubscription pre-consumes from any active subscription total quota.
 func PreConsumeUserSubscription(requestId string, userId int, modelName string, quotaType int, amount int64) (*SubscriptionPreConsumeResult, error) {
 	if userId <= 0 {
@@ -1004,6 +1024,17 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 			plan, err := getSubscriptionPlanByIdTx(tx, sub.PlanId)
 			if err != nil {
 				return err
+			}
+			// Check if model is in subscription's available group
+			availableGroup := strings.TrimSpace(plan.AvailableGroup)
+			if availableGroup != "" {
+				inGroup, err := isModelInGroup(modelName, availableGroup)
+				if err != nil {
+					return err
+				}
+				if !inGroup {
+					continue
+				}
 			}
 			if err := maybeResetUserSubscriptionWithPlanTx(tx, &sub, plan, now); err != nil {
 				return err

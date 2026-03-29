@@ -118,6 +118,11 @@ export const useSubscriptionsData = () => {
     setShowEdit(true);
   };
 
+  const onRedeemClick = (planRecord) => {
+    // Placeholder for redeem functionality
+    console.log('Redeem clicked for plan:', planRecord);
+  };
+
   // Initialize data on component mount
   useEffect(() => {
     loadPlans();
@@ -159,6 +164,7 @@ export const useSubscriptionsData = () => {
     closeEdit,
     openCreate,
     openEdit,
+    onRedeemClick,
 
     // Translation
     t,

@@ -192,6 +192,15 @@ const renderUpgradeGroup = (text, record, t) => {
   );
 };
 
+const renderAvailableGroup = (text, record, t) => {
+  const group = record?.plan?.available_group || '';
+  return (
+    <Text type={group ? 'secondary' : 'tertiary'}>
+      {group ? group : t('所有分组')}
+    </Text>
+  );
+};
+
 const renderResetPeriod = (text, record, t) => {
   const period = record?.plan?.quota_reset_period || 'never';
   const isNever = period === 'never';

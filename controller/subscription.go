@@ -94,13 +94,7 @@ func AdminListSubscriptionPlans(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	result := make([]SubscriptionPlanDTO, 0, len(plans))
-	for _, p := range plans {
-		result = append(result, SubscriptionPlanDTO{
-			Plan: p,
-		})
-	}
-	common.ApiSuccess(c, result)
+	common.ApiSuccess(c, plans)
 }
 
 type AdminUpsertSubscriptionPlanRequest struct {

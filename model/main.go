@@ -248,13 +248,7 @@ func InitLogDB() (err error) {
 }
 
 func migrateDB() error {
-	// Migrate price_amount column from float/double to decimal for existing tables
-	migrateSubscriptionPlanPriceAmount()
-	// Migrate model_limits column from varchar to text for existing tables
-	if err := migrateTokenModelLimitsToText(); err != nil {
-		return err
-	}
-
+	// First, create all base tables
 	err := DB.AutoMigrate(
 		&Channel{},
 		&Token{},
@@ -293,6 +287,35 @@ func migrateDB() error {
 			return err
 		}
 	}
+
+	// Then, run migrations that depend on existing tables
+	// Migrate price_amount column from float/double to decimal for existing tables
+	migrateSubscriptionPlanPriceAmount()
+	// Migrate model_limits column from varchar to text for existing tables
+	if err := migrateTokenModelLimitsToText(); err != nil {
+		return err
+	}
+	// Add available_group column to subscription_plans table
+	if err := MigrateAddAvailableGroupToSubscriptionPlan(); err != nil {
+		common.SysLog("Warning: failed to add available_group column to subscription_plans: " + err.Error())
+	}
+	// Add available_group column to user_subscriptions table
+	if err := MigrateAddAvailableGroupToUserSubscription(); err != nil {
+		common.SysLog("Warning: failed to add available_group column to user_subscriptions: " + err.Error())
+	}
+	// Create subscription_codes table
+	if err := MigrateSubscriptionCodeTable(); err != nil {
+		common.SysLog("Warning: failed to create subscription_codes table: " + err.Error())
+	}
+	// Migrate days to quota
+	if err := MigrateSubscriptionCodeDaysToQuota(); err != nil {
+		common.SysLog("Warning: failed to migrate subscription_codes days to quota: " + err.Error())
+	}
+	// Add duration and available_group fields to subscription_codes
+	if err := MigrateSubscriptionCodeAddDurationFields(); err != nil {
+		common.SysLog("Warning: failed to add duration fields to subscription_codes: " + err.Error())
+	}
+
 	return nil
 }
 
@@ -399,6 +422,7 @@ func ensureSubscriptionPlanTableSQLite() error {
 ` + "`creem_product_id`" + ` varchar(128) DEFAULT '',
 ` + "`max_purchase_per_user`" + ` integer DEFAULT 0,
 ` + "`upgrade_group`" + ` varchar(64) DEFAULT '',
+` + "`available_group`" + ` varchar(64) DEFAULT '',
 ` + "`total_amount`" + ` bigint NOT NULL DEFAULT 0,
 ` + "`quota_reset_period`" + ` varchar(16) DEFAULT 'never',
 ` + "`quota_reset_custom_seconds`" + ` bigint DEFAULT 0,
@@ -432,6 +456,7 @@ PRIMARY KEY (` + "`id`" + `)
 		{Name: "creem_product_id", DDL: "`creem_product_id` varchar(128) DEFAULT ''"},
 		{Name: "max_purchase_per_user", DDL: "`max_purchase_per_user` integer DEFAULT 0"},
 		{Name: "upgrade_group", DDL: "`upgrade_group` varchar(64) DEFAULT ''"},
+		{Name: "available_group", DDL: "`available_group` varchar(64) DEFAULT ''"},
 		{Name: "total_amount", DDL: "`total_amount` bigint NOT NULL DEFAULT 0"},
 		{Name: "quota_reset_period", DDL: "`quota_reset_period` varchar(16) DEFAULT 'never'"},
 		{Name: "quota_reset_custom_seconds", DDL: "`quota_reset_custom_seconds` bigint DEFAULT 0"},
