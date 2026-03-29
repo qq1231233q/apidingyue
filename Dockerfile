@@ -4,7 +4,6 @@ WORKDIR /build
 COPY web/package.json .
 COPY web/bun.lock .
 RUN bun install
-RUN bun add @douyinfe/semi-theme-default
 COPY ./web .
 COPY ./VERSION .
 RUN DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat VERSION) bun run build
