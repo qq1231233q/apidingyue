@@ -194,25 +194,65 @@ func SyncOptions(frequency int) {
 }
 
 func UpdateOption(key string, value string) error {
-	// Save to database first
+	oldValue, hadOldValue := getOptionValueSnapshot(key)
+	if err := updateOptionMap(key, value); err != nil {
+		return err
+	}
+
 	option := Option{
 		Key: key,
 	}
 	// https://gorm.io/docs/update.html#Save-All-Fields
-	DB.FirstOrCreate(&option, Option{Key: key})
+	if err := DB.FirstOrCreate(&option, Option{Key: key}).Error; err != nil {
+		restoreOptionValue(key, oldValue, hadOldValue)
+		return err
+	}
 	option.Value = value
 	// Save is a combination function.
 	// If save value does not contain primary key, it will execute Create,
 	// otherwise it will execute Update (with all fields).
-	DB.Save(&option)
-	// Update OptionMap
-	return updateOptionMap(key, value)
+	if err := DB.Save(&option).Error; err != nil {
+		restoreOptionValue(key, oldValue, hadOldValue)
+		return err
+	}
+	return nil
+}
+
+func getOptionValueSnapshot(key string) (string, bool) {
+	common.OptionMapRWMutex.RLock()
+	defer common.OptionMapRWMutex.RUnlock()
+
+	value, ok := common.OptionMap[key]
+	return value, ok
+}
+
+func restoreOptionValue(key, value string, existed bool) {
+	if !existed {
+		common.OptionMapRWMutex.Lock()
+		delete(common.OptionMap, key)
+		common.OptionMapRWMutex.Unlock()
+		return
+	}
+	if err := updateOptionMap(key, value); err != nil {
+		common.SysError("failed to restore option " + key + ": " + err.Error())
+	}
 }
 
 func updateOptionMap(key string, value string) (err error) {
 	common.OptionMapRWMutex.Lock()
 	defer common.OptionMapRWMutex.Unlock()
-	common.OptionMap[key] = value
+	oldValue, hadOldValue := common.OptionMap[key]
+	defer func() {
+		if err != nil {
+			if hadOldValue {
+				common.OptionMap[key] = oldValue
+			} else {
+				delete(common.OptionMap, key)
+			}
+			return
+		}
+		common.OptionMap[key] = value
+	}()
 
 	// 检查是否是模型配置 - 使用更规范的方式处理
 	if handleConfigUpdate(key, value) {
@@ -506,8 +546,7 @@ func updateOptionMap(key string, value string) (err error) {
 		err = operation_setting.UpdatePayMethodsByJsonString(value)
 	case "WaffoPayMethods":
 		// WaffoPayMethods is read directly from OptionMap via setting.GetWaffoPayMethods().
-		// The value is already stored in OptionMap at the top of this function (line: common.OptionMap[key] = value).
-		// No additional in-memory variable to update.
+		// No additional in-memory variable to update here.
 	}
 	return err
 }

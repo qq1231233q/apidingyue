@@ -26,6 +26,11 @@ export const useSubscriptionsData = () => {
   const { t } = useTranslation();
   const [compactMode, setCompactMode] = useTableCompactMode('subscriptions');
 
+  const normalizePlanRecord = (item) => {
+    if (!item) return null;
+    return item.plan ? item : { plan: item };
+  };
+
   // State management
   const [allPlans, setAllPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +50,9 @@ export const useSubscriptionsData = () => {
     try {
       const res = await API.get('/api/subscription/admin/plans');
       if (res.data?.success) {
-        const next = res.data.data || [];
+        const next = (res.data.data || [])
+          .map(normalizePlanRecord)
+          .filter(Boolean);
         setAllPlans(next);
 
         // Keep page in range after data changes
@@ -100,6 +107,28 @@ export const useSubscriptionsData = () => {
     }
   };
 
+  const deletePlan = async (planRecordOrId) => {
+    const planId =
+      typeof planRecordOrId === 'number'
+        ? planRecordOrId
+        : planRecordOrId?.plan?.id;
+    if (!planId) return;
+    setLoading(true);
+    try {
+      const res = await API.delete(`/api/subscription/admin/plans/${planId}`);
+      if (res.data?.success) {
+        showSuccess(t('已删除'));
+        await loadPlans();
+      } else {
+        showError(res.data?.message || t('删除失败'));
+      }
+    } catch (e) {
+      showError(t('请求失败'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Modal control functions
   const closeEdit = () => {
     setShowEdit(false);
@@ -116,11 +145,6 @@ export const useSubscriptionsData = () => {
     setSheetPlacement('right');
     setEditingPlan(planRecord);
     setShowEdit(true);
-  };
-
-  const onRedeemClick = (planRecord) => {
-    // Placeholder for redeem functionality
-    console.log('Redeem clicked for plan:', planRecord);
   };
 
   // Initialize data on component mount
@@ -160,11 +184,11 @@ export const useSubscriptionsData = () => {
     // Actions
     loadPlans,
     setPlanEnabled,
+    deletePlan,
     refresh,
     closeEdit,
     openCreate,
     openEdit,
-    onRedeemClick,
 
     // Translation
     t,

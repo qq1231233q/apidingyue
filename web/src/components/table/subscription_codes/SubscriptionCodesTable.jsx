@@ -36,6 +36,7 @@ const SubscriptionCodesTable = (codesData) => {
     codeCount,
     compactMode,
     handlePageChange,
+    handlePageSizeChange,
     rowSelection,
     handleRow,
     manageCode,
@@ -54,29 +55,18 @@ const SubscriptionCodesTable = (codesData) => {
     setShowDeleteModal(true);
   };
 
-  const columns = useMemo(() => {
-    return getSubscriptionCodesColumns({
-      t,
-      manageCode,
-      copyText,
-      setEditingCode,
-      setShowEdit,
-      refresh,
-      codes,
-      activePage,
-      showDeleteCodeModal,
-    });
-  }, [
-    t,
-    manageCode,
-    copyText,
-    setEditingCode,
-    setShowEdit,
-    refresh,
-    codes,
-    activePage,
-    showDeleteCodeModal,
-  ]);
+  const columns = useMemo(
+    () =>
+      getSubscriptionCodesColumns({
+        t,
+        manageCode,
+        copyText,
+        setEditingCode,
+        setShowEdit,
+        showDeleteCodeModal,
+      }),
+    [t, manageCode, copyText, setEditingCode, setShowEdit],
+  );
 
   const tableColumns = useMemo(() => {
     return compactMode
@@ -98,11 +88,11 @@ const SubscriptionCodesTable = (codesData) => {
         scroll={compactMode ? undefined : { x: 'max-content' }}
         pagination={{
           currentPage: activePage,
-          pageSize: pageSize,
+          pageSize,
           total: codeCount,
           showSizeChanger: true,
           pageSizeOptions: [10, 20, 50, 100],
-          onPageSizeChange: codesData.handlePageSizeChange,
+          onPageSizeChange: handlePageSizeChange,
           onPageChange: handlePageChange,
         }}
         hidePagination={true}
@@ -115,7 +105,7 @@ const SubscriptionCodesTable = (codesData) => {
             darkModeImage={
               <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
             }
-            description={t('搜索无结果')}
+            description={t('暂无激活码记录')}
             style={{ padding: 30 }}
           />
         }

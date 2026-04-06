@@ -21,7 +21,6 @@ import React from 'react';
 import { Button } from '@douyinfe/semi-ui';
 
 const SubscriptionCodesActions = ({
-  selectedKeys,
   setEditingCode,
   setShowEdit,
   batchCopyCodes,

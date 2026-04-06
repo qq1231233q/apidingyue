@@ -3,13 +3,50 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
 )
+
+func validateSubscriptionCodeConfig(code *model.SubscriptionCode) string {
+	if code == nil {
+		return "参数错误"
+	}
+	if code.Quota <= 0 {
+		return "充值额度必须大于 0"
+	}
+	if code.DurationUnit == "" {
+		code.DurationUnit = model.SubscriptionDurationMonth
+	}
+	switch code.DurationUnit {
+	case model.SubscriptionDurationYear,
+		model.SubscriptionDurationMonth,
+		model.SubscriptionDurationDay,
+		model.SubscriptionDurationHour,
+		model.SubscriptionDurationCustom:
+	default:
+		return "无效的时长单位"
+	}
+	if code.DurationUnit == model.SubscriptionDurationCustom {
+		if code.CustomSeconds <= 0 {
+			return "自定义秒数必须大于 0"
+		}
+	} else if code.DurationValue <= 0 {
+		return "时长数值必须大于 0"
+	}
+	code.AvailableGroup = strings.TrimSpace(code.AvailableGroup)
+	if code.AvailableGroup != "" {
+		if _, ok := ratio_setting.GetGroupRatioCopy()[code.AvailableGroup]; !ok {
+			return "可用分组不存在"
+		}
+	}
+	return ""
+}
 
 func GetAllSubscriptionCodes(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
@@ -25,8 +62,6 @@ func GetAllSubscriptionCodes(c *gin.Context) {
 
 func SearchSubscriptionCodes(c *gin.Context) {
 	keyword := c.Query("keyword")
-	
-	// Limit keyword length to prevent DoS
 	if len(keyword) > 100 {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -34,7 +69,7 @@ func SearchSubscriptionCodes(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	pageInfo := common.GetPageQuery(c)
 	codes, total, err := model.SearchSubscriptionCodes(keyword, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 	if err != nil {
@@ -66,8 +101,7 @@ func GetSubscriptionCode(c *gin.Context) {
 
 func AddSubscriptionCode(c *gin.Context) {
 	code := model.SubscriptionCode{}
-	err := c.ShouldBindJSON(&code)
-	if err != nil {
+	if err := c.ShouldBindJSON(&code); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -96,31 +130,14 @@ func AddSubscriptionCode(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
 		return
 	}
-	if code.Quota <= 0 {
+	if msg := validateSubscriptionCodeConfig(&code); msg != "" {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "充值额度必须大于 0",
+			"message": msg,
 		})
 		return
 	}
-	// Validate duration settings
-	if code.DurationUnit == "" {
-		code.DurationUnit = "month"
-	}
-	if code.DurationValue <= 0 && code.DurationUnit != "custom" {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "时长数值必须大于 0",
-		})
-		return
-	}
-	if code.DurationUnit == "custom" && code.CustomSeconds <= 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "自定义秒数必须大于 0",
-		})
-		return
-	}
+
 	var keys []string
 	for i := 0; i < code.Count; i++ {
 		key := common.GetUUID()
@@ -136,8 +153,7 @@ func AddSubscriptionCode(c *gin.Context) {
 			CreatedTime:    common.GetTimestamp(),
 			ExpiredTime:    code.ExpiredTime,
 		}
-		err = cleanCode.Insert()
-		if err != nil {
+		if err := cleanCode.Insert(); err != nil {
 			common.SysError("failed to insert subscription code: " + err.Error())
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -157,8 +173,7 @@ func AddSubscriptionCode(c *gin.Context) {
 
 func DeleteSubscriptionCode(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	err := model.DeleteSubscriptionCodeById(id)
-	if err != nil {
+	if err := model.DeleteSubscriptionCodeById(id); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -171,8 +186,7 @@ func DeleteSubscriptionCode(c *gin.Context) {
 func UpdateSubscriptionCode(c *gin.Context) {
 	statusOnly := c.Query("status_only")
 	code := model.SubscriptionCode{}
-	err := c.ShouldBindJSON(&code)
-	if err != nil {
+	if err := c.ShouldBindJSON(&code); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -182,7 +196,6 @@ func UpdateSubscriptionCode(c *gin.Context) {
 		return
 	}
 	if statusOnly == "" {
-		// Validate name length
 		if utf8.RuneCountInString(code.Name) == 0 || utf8.RuneCountInString(code.Name) > 20 {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -194,10 +207,10 @@ func UpdateSubscriptionCode(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
 			return
 		}
-		if code.Quota <= 0 {
+		if msg := validateSubscriptionCodeConfig(&code); msg != "" {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": "充值额度必须大于 0",
+				"message": msg,
 			})
 			return
 		}
@@ -212,8 +225,7 @@ func UpdateSubscriptionCode(c *gin.Context) {
 	if statusOnly != "" {
 		cleanCode.Status = code.Status
 	}
-	err = cleanCode.Update()
-	if err != nil {
+	if err := cleanCode.Update(); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -237,52 +249,12 @@ func DeleteInvalidSubscriptionCodes(c *gin.Context) {
 	})
 }
 
-func RedeemSubscriptionCodeByUser(c *gin.Context) {
-	key := c.PostForm("key")
-	if key == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "请输入激活码",
-		})
-		return
-	}
-	
-	// Validate key format (UUID should be 32 chars)
-	if len(key) != 32 {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "激活码格式无效",
-		})
-		return
-	}
-	
-	userId := c.GetInt("id")
-	if userId == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": "用户未登录",
-		})
-		return
-	}
-	quota, err := model.RedeemSubscriptionCode(key, userId)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
-			"message": err.Error(),
-		})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "充值成功",
-		"data":    quota,
-	})
-}
 
 func RedeemSubscriptionCode(c *gin.Context) {
 	type RedeemRequest struct {
 		Code string `json:"code"`
 	}
+
 	var req RedeemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusOK, gin.H{
@@ -291,7 +263,6 @@ func RedeemSubscriptionCode(c *gin.Context) {
 		})
 		return
 	}
-	
 	if req.Code == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -299,7 +270,6 @@ func RedeemSubscriptionCode(c *gin.Context) {
 		})
 		return
 	}
-	
 	if len(req.Code) != 32 {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
@@ -307,7 +277,7 @@ func RedeemSubscriptionCode(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	userId := c.GetInt("id")
 	if userId == 0 {
 		c.JSON(http.StatusOK, gin.H{
@@ -316,7 +286,6 @@ func RedeemSubscriptionCode(c *gin.Context) {
 		})
 		return
 	}
-	
 	quota, err := model.RedeemSubscriptionCode(req.Code, userId)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
@@ -325,10 +294,10 @@ func RedeemSubscriptionCode(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "充值成功",
+		"message": "兑换成功",
 		"data":    quota,
 	})
 }

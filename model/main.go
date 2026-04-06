@@ -61,6 +61,12 @@ func initCol() {
 	//common.SysLog("Using Log SQL Type: " + common.LogSqlType)
 }
 
+// InitDBColumnNames refreshes reserved-column quoting for the current DB flags.
+// Tests that bypass InitDB/chooseDB should call this after setting DB type flags.
+func InitDBColumnNames() {
+	initCol()
+}
+
 var DB *gorm.DB
 
 var LOG_DB *gorm.DB

@@ -99,19 +99,21 @@ const RechargeCard = ({
   reloadSubscriptionSelf,
 }) => {
   const onlineFormApiRef = useRef(null);
-  const redeemFormApiRef = useRef(null);
   const initialTabSetRef = useRef(false);
   const showAmountSkeleton = useMinimumLoadingTime(amountLoading);
   const [activeTab, setActiveTab] = useState('topup');
-  const shouldShowSubscription =
-    !subscriptionLoading && subscriptionPlans.length > 0;
+  const hasSubscriptionContent =
+    subscriptionPlans.length > 0 ||
+    activeSubscriptions.length > 0 ||
+    allSubscriptions.length > 0;
+  const shouldShowSubscription = !subscriptionLoading;
 
   useEffect(() => {
     if (initialTabSetRef.current) return;
     if (subscriptionLoading) return;
-    setActiveTab(shouldShowSubscription ? 'subscription' : 'topup');
+    setActiveTab(hasSubscriptionContent ? 'subscription' : 'topup');
     initialTabSetRef.current = true;
-  }, [shouldShowSubscription, subscriptionLoading]);
+  }, [hasSubscriptionContent, subscriptionLoading]);
 
   useEffect(() => {
     if (!shouldShowSubscription && activeTab !== 'topup') {
@@ -571,10 +573,7 @@ const RechargeCard = ({
           </Text>
         }
       >
-        <Form
-          getFormApi={(api) => (redeemFormApiRef.current = api)}
-          initValues={{ redemptionCode: redemptionCode }}
-        >
+        <Form initValues={{ redemptionCode: redemptionCode }}>
           <Form.Input
             field='redemptionCode'
             noLabel={true}

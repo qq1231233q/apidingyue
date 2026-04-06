@@ -50,7 +50,7 @@ const DeleteSubscriptionCodeModal = ({
       onOk={handleConfirm}
       type='warning'
     >
-      {t('此修改将不可逆')}
+      {t('此操作不可撤销')}
     </Modal>
   );
 };

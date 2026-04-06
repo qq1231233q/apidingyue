@@ -39,17 +39,21 @@ import {
   formatSubscriptionDuration,
   formatSubscriptionResetPeriod,
 } from '../../helpers/subscriptionFormat';
+import {
+  getSubscriptionAvailableGroup,
+  getSubscriptionDisplayTitle,
+  getSubscriptionSourceLabel,
+  getSubscriptionStatusMeta,
+} from '../../helpers/subscriptionDisplay';
 
 const { Text } = Typography;
 
-// 过滤易支付方式
 function getEpayMethods(payMethods = []) {
   return (payMethods || []).filter(
     (m) => m?.type && m.type !== 'stripe' && m.type !== 'creem',
   );
 }
 
-// 提交易支付表单
 function submitEpayForm({ url, params }) {
   const form = document.createElement('form');
   form.action = url;
@@ -309,9 +313,9 @@ const SubscriptionPlansCard = ({
               <div className='flex items-center gap-2 flex-1 min-w-0'>
                 <Text strong>{t('我的订阅')}</Text>
                 <Button
-                  size='small'
-                  theme='light'
-                  type='tertiary'
+                  size='default'
+                  theme='solid'
+                  type='warning'
                   onClick={() => setShowRedeemModal(true)}
                 >
                   {t('兑换激活码')}
@@ -384,6 +388,31 @@ const SubscriptionPlansCard = ({
               </Text>
             )}
 
+            <div
+              className='mt-3 rounded-xl border px-3 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3'
+              style={{
+                background: 'linear-gradient(135deg, #fff7d6 0%, #ffe7a3 100%)',
+                borderColor: '#f2c66d',
+              }}
+            >
+              <div className='min-w-0'>
+                <div className='text-sm font-medium text-gray-900'>
+                  {t('有激活码的话，直接在这里兑换订阅')}
+                </div>
+                <div className='text-xs text-gray-600 mt-1'>
+                  {t('兑换后会立即生成订阅，并从兑换时刻开始计时')}
+                </div>
+              </div>
+              <Button
+                theme='solid'
+                type='warning'
+                size='large'
+                onClick={() => setShowRedeemModal(true)}
+              >
+                {t('立即兑换激活码')}
+              </Button>
+            </div>
+
             {hasAnySubscription ? (
               <>
                 <Divider margin={8} />
@@ -397,26 +426,32 @@ const SubscriptionPlansCard = ({
                       totalAmount > 0
                         ? Math.max(0, totalAmount - usedAmount)
                         : 0;
-                    const planTitle =
-                      planTitleMap.get(subscription?.plan_id) || '';
+                    const title = getSubscriptionDisplayTitle(
+                      subscription,
+                      sub?.plan,
+                      planTitleMap,
+                      t,
+                    );
+                    const sourceLabel = getSubscriptionSourceLabel(
+                      subscription?.source,
+                      t,
+                    );
+                    const availableGroup = getSubscriptionAvailableGroup(
+                      subscription,
+                      sub?.plan,
+                    );
                     const remainDays = getRemainingDays(sub);
                     const usagePercent = getUsagePercent(sub);
-                    const now = Date.now() / 1000;
-                    const isExpired = (subscription?.end_time || 0) < now;
-                    const isCancelled = subscription?.status === 'cancelled';
-                    const isActive =
-                      subscription?.status === 'active' && !isExpired;
+                    const { isActive, isCancelled } =
+                      getSubscriptionStatusMeta(subscription);
 
                     return (
                       <div key={subscription?.id || subIndex}>
                         {/* 订阅概要 */}
                         <div className='flex items-center justify-between text-xs mb-2'>
                           <div className='flex items-center gap-2'>
-                            <span className='font-medium'>
-                              {planTitle
-                                ? `${planTitle} · ${t('订阅')} #${subscription?.id}`
-                                : `${t('订阅')} #${subscription?.id}`}
-                            </span>
+                            <span className='font-medium'>{title}</span>{/*
+                            */}
                             {isActive ? (
                               <Tag
                                 color='white'
@@ -441,6 +476,14 @@ const SubscriptionPlansCard = ({
                               {t('剩余')} {remainDays} {t('天')}
                             </span>
                           )}
+                        </div>
+                        <div className='text-xs text-gray-500 mb-2 flex flex-wrap gap-x-3 gap-y-1'>
+                          <span>
+                            {t('来源')}: {sourceLabel}
+                          </span>
+                          <span>
+                            {t('可用分组')}: {availableGroup || t('所有分组')}
+                          </span>
                         </div>
                         <div className='text-xs text-gray-500 mb-2'>
                           {isActive

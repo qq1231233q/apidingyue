@@ -201,11 +201,12 @@ export const useTokensData = (openFluentNotification, openCCSwitchModal) => {
   // Open link function for chat integrations
   const onOpenLink = async (type, url, record) => {
     const fullKey = await fetchTokenKey(record);
-    if (url && url.startsWith('ccswitch')) {
+    const normalizedUrl = typeof url === 'string' ? url.trim().toLowerCase() : '';
+    if (normalizedUrl === 'ccswitch') {
       openCCSwitchModal(fullKey);
       return;
     }
-    if (url && url.startsWith('fluent')) {
+    if (normalizedUrl === 'fluentread') {
       openFluentNotification(fullKey);
       return;
     }

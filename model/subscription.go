@@ -250,8 +250,8 @@ type UserSubscription struct {
 	LastResetTime int64 `json:"last_reset_time" gorm:"type:bigint;default:0"`
 	NextResetTime int64 `json:"next_reset_time" gorm:"type:bigint;default:0;index"`
 
-	UpgradeGroup  string `json:"upgrade_group" gorm:"type:varchar(64);default:''"`
-	PrevUserGroup string `json:"prev_user_group" gorm:"type:varchar(64);default:''"`
+	UpgradeGroup   string `json:"upgrade_group" gorm:"type:varchar(64);default:''"`
+	PrevUserGroup  string `json:"prev_user_group" gorm:"type:varchar(64);default:''"`
 	AvailableGroup string `json:"available_group" gorm:"type:varchar(64);default:\'\'"`
 
 	CreatedAt int64 `json:"created_at" gorm:"bigint"`
@@ -270,8 +270,16 @@ func (s *UserSubscription) BeforeUpdate(tx *gorm.DB) error {
 	return nil
 }
 
+type SubscriptionSummaryPlan struct {
+	Id             int    `json:"id"`
+	Title          string `json:"title"`
+	Subtitle       string `json:"subtitle"`
+	AvailableGroup string `json:"available_group"`
+}
+
 type SubscriptionSummary struct {
-	Subscription *UserSubscription `json:"subscription"`
+	Subscription *UserSubscription        `json:"subscription"`
+	Plan         *SubscriptionSummaryPlan `json:"plan,omitempty"`
 }
 
 func calcPlanEndTime(start time.Time, plan *SubscriptionPlan) (int64, error) {
@@ -487,21 +495,21 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 		}
 	}
 	sub := &UserSubscription{
-		UserId:        userId,
-		PlanId:        plan.Id,
-		AmountTotal:   plan.TotalAmount,
-		AmountUsed:    0,
-		StartTime:     now.Unix(),
-		EndTime:       endUnix,
-		Status:        "active",
-		Source:        source,
-		LastResetTime: lastReset,
-		NextResetTime: nextReset,
-		UpgradeGroup:  upgradeGroup,
-		PrevUserGroup: prevGroup,
+		UserId:         userId,
+		PlanId:         plan.Id,
+		AmountTotal:    plan.TotalAmount,
+		AmountUsed:     0,
+		StartTime:      now.Unix(),
+		EndTime:        endUnix,
+		Status:         "active",
+		Source:         source,
+		LastResetTime:  lastReset,
+		NextResetTime:  nextReset,
+		UpgradeGroup:   upgradeGroup,
+		PrevUserGroup:  prevGroup,
 		AvailableGroup: plan.AvailableGroup,
-		CreatedAt:     common.GetTimestamp(),
-		UpdatedAt:     common.GetTimestamp(),
+		CreatedAt:      common.GetTimestamp(),
+		UpdatedAt:      common.GetTimestamp(),
 	}
 	if err := tx.Create(sub).Error; err != nil {
 		return nil, err
@@ -706,12 +714,46 @@ func buildSubscriptionSummaries(subs []UserSubscription) []SubscriptionSummary {
 	if len(subs) == 0 {
 		return []SubscriptionSummary{}
 	}
+
+	planIds := make([]int, 0, len(subs))
+	seenPlanIds := make(map[int]struct{}, len(subs))
+	for _, sub := range subs {
+		if sub.PlanId <= 0 {
+			continue
+		}
+		if _, ok := seenPlanIds[sub.PlanId]; ok {
+			continue
+		}
+		seenPlanIds[sub.PlanId] = struct{}{}
+		planIds = append(planIds, sub.PlanId)
+	}
+
+	planMap := make(map[int]SubscriptionSummaryPlan, len(planIds))
+	if len(planIds) > 0 {
+		var plans []SubscriptionPlan
+		if err := DB.Where("id IN ?", planIds).Find(&plans).Error; err == nil {
+			for _, plan := range plans {
+				planMap[plan.Id] = SubscriptionSummaryPlan{
+					Id:             plan.Id,
+					Title:          plan.Title,
+					Subtitle:       plan.Subtitle,
+					AvailableGroup: plan.AvailableGroup,
+				}
+			}
+		}
+	}
+
 	result := make([]SubscriptionSummary, 0, len(subs))
 	for _, sub := range subs {
 		subCopy := sub
-		result = append(result, SubscriptionSummary{
+		summary := SubscriptionSummary{
 			Subscription: &subCopy,
-		})
+		}
+		if plan, ok := planMap[sub.PlanId]; ok {
+			planCopy := plan
+			summary.Plan = &planCopy
+		}
+		result = append(result, summary)
 	}
 	return result
 }
@@ -957,6 +999,26 @@ func maybeResetUserSubscriptionWithPlanTx(tx *gorm.DB, sub *UserSubscription, pl
 	return tx.Save(sub).Error
 }
 
+func resolveSubscriptionPlanAndGroupTx(tx *gorm.DB, sub *UserSubscription) (*SubscriptionPlan, string, error) {
+	if sub == nil {
+		return nil, "", errors.New("invalid subscription")
+	}
+
+	availableGroup := strings.TrimSpace(sub.AvailableGroup)
+	if sub.PlanId <= 0 {
+		return nil, availableGroup, nil
+	}
+
+	plan, err := getSubscriptionPlanByIdTx(tx, sub.PlanId)
+	if err != nil {
+		return nil, "", err
+	}
+	if availableGroup == "" && strings.TrimSpace(plan.AvailableGroup) != "" {
+		availableGroup = strings.TrimSpace(plan.AvailableGroup)
+	}
+	return plan, availableGroup, nil
+}
+
 // isModelInGroup checks if a model belongs to a specific group
 func isModelInGroup(modelName string, group string) (bool, error) {
 	if strings.TrimSpace(group) == "" || strings.TrimSpace(modelName) == "" {
@@ -1021,12 +1083,11 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 		}
 		for _, candidate := range subs {
 			sub := candidate
-			plan, err := getSubscriptionPlanByIdTx(tx, sub.PlanId)
+			plan, availableGroup, err := resolveSubscriptionPlanAndGroupTx(tx, &sub)
 			if err != nil {
 				return err
 			}
 			// Check if model is in subscription's available group
-			availableGroup := strings.TrimSpace(plan.AvailableGroup)
 			if availableGroup != "" {
 				inGroup, err := isModelInGroup(modelName, availableGroup)
 				if err != nil {
@@ -1036,8 +1097,10 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 					continue
 				}
 			}
-			if err := maybeResetUserSubscriptionWithPlanTx(tx, &sub, plan, now); err != nil {
-				return err
+			if plan != nil {
+				if err := maybeResetUserSubscriptionWithPlanTx(tx, &sub, plan, now); err != nil {
+					return err
+				}
 			}
 			usedBefore := sub.AmountUsed
 			if sub.AmountTotal > 0 {
@@ -1182,6 +1245,9 @@ func GetSubscriptionPlanInfoByUserSubscriptionId(userSubscriptionId int) (*Subsc
 	var sub UserSubscription
 	if err := DB.Where("id = ?", userSubscriptionId).First(&sub).Error; err != nil {
 		return nil, err
+	}
+	if sub.PlanId <= 0 {
+		return nil, nil
 	}
 	plan, err := getSubscriptionPlanByIdTx(nil, sub.PlanId)
 	if err != nil {

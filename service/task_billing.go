@@ -39,6 +39,7 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 	other["request_path"] = c.Request.URL.Path
 	other["model_price"] = info.PriceData.ModelPrice
 	other["group_ratio"] = info.PriceData.GroupRatioInfo.GroupRatio
+	appendTaskBillingSourceInfo(other, info.BillingSource, info.SubscriptionId, info.PriceData.Quota)
 	if info.PriceData.GroupRatioInfo.HasSpecialRatio {
 		other["user_group_ratio"] = info.PriceData.GroupRatioInfo.GroupSpecialRatio
 	}
@@ -58,6 +59,21 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 	})
 	model.UpdateUserUsedQuotaAndRequestCount(info.UserId, info.PriceData.Quota)
 	model.UpdateChannelUsedQuota(info.ChannelId, info.PriceData.Quota)
+}
+
+func appendTaskBillingSourceInfo(other map[string]interface{}, billingSource string, subscriptionId int, walletQuota int) {
+	if other == nil || billingSource == "" {
+		return
+	}
+	other["billing_source"] = billingSource
+	if billingSource == BillingSourceSubscription {
+		if subscriptionId > 0 {
+			other["subscription_id"] = subscriptionId
+		}
+		other["wallet_quota_deducted"] = 0
+		return
+	}
+	other["wallet_quota_deducted"] = walletQuota
 }
 
 // ---------------------------------------------------------------------------
@@ -115,6 +131,7 @@ func taskAdjustTokenQuota(ctx context.Context, task *model.Task, delta int) {
 // taskBillingOther 从 task 的 BillingContext 构建日志 Other 字段。
 func taskBillingOther(task *model.Task) map[string]interface{} {
 	other := make(map[string]interface{})
+	appendTaskBillingSourceInfo(other, task.PrivateData.BillingSource, task.PrivateData.SubscriptionId, 0)
 	if bc := task.PrivateData.BillingContext; bc != nil {
 		other["model_price"] = bc.ModelPrice
 		other["group_ratio"] = bc.GroupRatio

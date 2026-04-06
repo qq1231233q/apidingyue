@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   API,
@@ -50,12 +50,46 @@ import {
 
 const { Text, Title } = Typography;
 
+function normalizeGroupOptions(groups, extraGroups = []) {
+  const uniqueGroups = new Set();
+  [...(groups || []), ...(extraGroups || [])].forEach((group) => {
+    const value = typeof group === 'string' ? group.trim() : '';
+    if (value) {
+      uniqueGroups.add(value);
+    }
+  });
+
+  return Array.from(uniqueGroups)
+    .sort((a, b) => {
+      if (a === 'default') return -1;
+      if (b === 'default') return 1;
+      return a.localeCompare(b);
+    })
+    .map((group) => ({
+      label: group,
+      value: group,
+    }));
+}
+
 const EditSubscriptionCodeModal = (props) => {
   const { t } = useTranslation();
   const isEdit = props.editingCode.id !== undefined;
   const [loading, setLoading] = useState(isEdit);
+  const [groupOptions, setGroupOptions] = useState([]);
+  const [groupLoading, setGroupLoading] = useState(false);
   const isMobile = useIsMobile();
   const formApiRef = useRef(null);
+
+  const selectGroupOptions = useMemo(
+    () =>
+      normalizeGroupOptions(groupOptions, [props.editingCode?.available_group]),
+    [groupOptions, props.editingCode?.available_group],
+  );
+
+  const selectableGroupsText = useMemo(
+    () => selectGroupOptions.map((item) => item.value).join(' / '),
+    [selectGroupOptions],
+  );
 
   const getInitValues = () => ({
     name: '',
@@ -74,15 +108,15 @@ const EditSubscriptionCodeModal = (props) => {
 
   const loadCode = async () => {
     setLoading(true);
-    let res = await API.get(`/api/subscription_code/${props.editingCode.id}`);
+    const res = await API.get(`/api/subscription_code/${props.editingCode.id}`);
     const { success, message, data } = res.data;
     if (success) {
-      if (data.expired_time === 0) {
-        data.expired_time = null;
-      } else {
-        data.expired_time = new Date(data.expired_time * 1000);
-      }
-      formApiRef.current?.setValues({ ...getInitValues(), ...data });
+      const next = { ...getInitValues(), ...data };
+      next.expired_time =
+        next.expired_time && next.expired_time !== 0
+          ? new Date(next.expired_time * 1000)
+          : null;
+      formApiRef.current?.setValues(next);
     } else {
       showError(message);
     }
@@ -90,63 +124,78 @@ const EditSubscriptionCodeModal = (props) => {
   };
 
   useEffect(() => {
-    if (formApiRef.current) {
-      if (isEdit) {
-        loadCode();
-      } else {
-        formApiRef.current.setValues(getInitValues());
-      }
+    if (!formApiRef.current) return;
+    if (isEdit) {
+      loadCode();
+      return;
     }
+    formApiRef.current.setValues(getInitValues());
   }, [props.editingCode.id]);
+
+  useEffect(() => {
+    if (!props.visiable) return;
+    setGroupLoading(true);
+    API.get('/api/group')
+      .then((res) => {
+        if (res.data?.success) {
+          setGroupOptions(res.data?.data || []);
+        } else {
+          setGroupOptions([]);
+        }
+      })
+      .catch(() => setGroupOptions([]))
+      .finally(() => setGroupLoading(false));
+  }, [props.visiable]);
 
   const submit = async (values) => {
     let name = values.name;
     if (!isEdit && (!name || name === '')) {
-      name = `充值激活码`;
+      name = t('订阅激活码');
     }
+
     setLoading(true);
-    let localInputs = { ...values };
-    localInputs.count = parseInt(localInputs.count) || 0;
-    localInputs.quota = parseInt(localInputs.quota) || 0;
-    localInputs.name = name;
-    if (!localInputs.expired_time) {
-      localInputs.expired_time = 0;
-    } else {
-      localInputs.expired_time = Math.floor(
-        localInputs.expired_time.getTime() / 1000,
-      );
-    }
+    const localInputs = {
+      ...values,
+      count: parseInt(values.count, 10) || 0,
+      quota: parseInt(values.quota, 10) || 0,
+      name,
+      expired_time: values.expired_time
+        ? Math.floor(values.expired_time.getTime() / 1000)
+        : 0,
+    };
+
     let res;
     if (isEdit) {
-      res = await API.put(`/api/subscription_code/`, {
+      res = await API.put('/api/subscription_code/', {
         ...localInputs,
-        id: parseInt(props.editingCode.id),
+        id: parseInt(props.editingCode.id, 10),
       });
     } else {
-      res = await API.post(`/api/subscription_code/`, {
-        ...localInputs,
-      });
+      res = await API.post('/api/subscription_code/', localInputs);
     }
+
     const { success, message, data } = res.data;
-    if (success) {
-      if (isEdit) {
-        showSuccess(t('激活码更新成功！'));
-        props.refresh();
-        props.handleClose();
-      } else {
-        showSuccess(t('激活码创建成功！'));
-        props.refresh();
-        formApiRef.current?.setValues(getInitValues());
-        props.handleClose();
-      }
-    } else {
+    if (!success) {
       showError(message);
+      setLoading(false);
+      return;
     }
-    if (!isEdit && data) {
-      let text = '';
-      for (let i = 0; i < data.length; i++) {
-        text += data[i] + '\n';
-      }
+
+    if (isEdit) {
+      showSuccess(t('激活码更新成功！'));
+      props.refresh();
+      props.handleClose();
+      setLoading(false);
+      return;
+    }
+
+    showSuccess(t('激活码创建成功！'));
+    props.refresh();
+    formApiRef.current?.setValues(getInitValues());
+    props.handleClose();
+
+    if (data) {
+      const text = data.map((item) => `${item}\n`).join('');
       Modal.confirm({
         title: t('激活码创建成功'),
         content: (
@@ -160,6 +209,7 @@ const EditSubscriptionCodeModal = (props) => {
         },
       });
     }
+
     setLoading(false);
   };
 
@@ -209,12 +259,14 @@ const EditSubscriptionCodeModal = (props) => {
           </div>
         }
         closeIcon={null}
-        onCancel={() => handleCancel()}
+        onCancel={handleCancel}
       >
         <Spin spinning={loading}>
           <Form
             initValues={getInitValues()}
-            getFormApi={(api) => (formApiRef.current = api)}
+            getFormApi={(api) => {
+              formApiRef.current = api;
+            }}
             onSubmit={submit}
           >
             {({ values }) => (
@@ -229,9 +281,7 @@ const EditSubscriptionCodeModal = (props) => {
                       <IconGift size={16} />
                     </Avatar>
                     <div>
-                      <Text className='text-lg font-medium'>
-                        {t('基本信息')}
-                      </Text>
+                      <Text className='text-lg font-medium'>{t('基本信息')}</Text>
                       <div className='text-xs text-gray-600'>
                         {t('设置激活码的基本信息')}
                       </div>
@@ -256,12 +306,15 @@ const EditSubscriptionCodeModal = (props) => {
                     <Col span={24}>
                       <Form.DatePicker
                         field='expired_time'
-                        label={t('过期时间')}
+                        label={t('激活码有效截止时间')}
                         type='dateTime'
-                        placeholder={t('选择过期时间（可选，留空为永久）')}
+                        placeholder={t('选择激活码有效截止时间（可选，留空为永久）')}
                         style={{ width: '100%' }}
                         showClear
                       />
+                      <div className='text-xs text-gray-500 mt-1'>
+                        {t('这里只限制激活码最晚可兑换到什么时候，不是订阅结束时间')}
+                      </div>
                     </Col>
                   </Row>
                 </Card>
@@ -276,9 +329,7 @@ const EditSubscriptionCodeModal = (props) => {
                       <IconCreditCard size={16} />
                     </Avatar>
                     <div>
-                      <Text className='text-lg font-medium'>
-                        {t('额度设置')}
-                      </Text>
+                      <Text className='text-lg font-medium'>{t('额度设置')}</Text>
                       <div className='text-xs text-gray-600'>
                         {t('设置激活码的充值额度和数量')}
                       </div>
@@ -298,7 +349,7 @@ const EditSubscriptionCodeModal = (props) => {
                               const num = parseInt(v, 10);
                               return num > 0
                                 ? Promise.resolve()
-                                : Promise.reject(t('充值额度必须大于0'));
+                                : Promise.reject(t('充值额度必须大于 0'));
                             },
                           },
                         ]}
@@ -307,6 +358,7 @@ const EditSubscriptionCodeModal = (props) => {
                       />
                     </Col>
                   </Row>
+
                   {!isEdit && (
                     <Row gutter={12} style={{ marginTop: '12px' }}>
                       <Col span={24}>
@@ -343,11 +395,9 @@ const EditSubscriptionCodeModal = (props) => {
                       <IconCreditCard size={16} />
                     </Avatar>
                     <div>
-                      <Text className='text-lg font-medium'>
-                        {t('订阅时长')}
-                      </Text>
+                      <Text className='text-lg font-medium'>{t('订阅时长')}</Text>
                       <div className='text-xs text-gray-600'>
-                        {t('设置激活后的订阅有效期')}
+                        {t('用户兑换后，从兑换时刻开始按这里计时')}
                       </div>
                     </div>
                   </div>
@@ -384,7 +434,7 @@ const EditSubscriptionCodeModal = (props) => {
                                 const num = parseInt(v, 10);
                                 return num > 0
                                   ? Promise.resolve()
-                                  : Promise.reject(t('时长数值必须大于0'));
+                                  : Promise.reject(t('时长数值必须大于 0'));
                               },
                             },
                           ]}
@@ -425,9 +475,7 @@ const EditSubscriptionCodeModal = (props) => {
                       <IconGift size={16} />
                     </Avatar>
                     <div>
-                      <Text className='text-lg font-medium'>
-                        {t('高级设置')}
-                      </Text>
+                      <Text className='text-lg font-medium'>{t('高级设置')}</Text>
                       <div className='text-xs text-gray-600'>
                         {t('可选的高级配置')}
                       </div>
@@ -436,16 +484,28 @@ const EditSubscriptionCodeModal = (props) => {
 
                   <Row gutter={12}>
                     <Col span={24}>
-                      <Form.Input
+                      <Form.Select
                         field='available_group'
                         label={t('可用分组')}
-                        placeholder={t('留空表示不限制，可用于所有模型')}
-                        style={{ width: '100%' }}
                         showClear
-                      />
+                        loading={groupLoading}
+                        placeholder={t('所有分组')}
+                      >
+                        <Select.Option value=''>{t('所有分组')}</Select.Option>
+                        {selectGroupOptions.map((group) => (
+                          <Select.Option key={group.value} value={group.value}>
+                            {group.label}
+                          </Select.Option>
+                        ))}
+                      </Form.Select>
                       <div className='text-xs text-gray-500 mt-1'>
                         {t('限制订阅额度只能用于指定分组的模型')}
                       </div>
+                      {selectableGroupsText ? (
+                        <div className='text-xs text-gray-500 mt-1'>
+                          {t('可选分组')}: {selectableGroupsText}
+                        </div>
+                      ) : null}
                     </Col>
                   </Row>
                 </Card>

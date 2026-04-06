@@ -59,7 +59,7 @@ const SubscriptionCodesFilters = ({
           <Form.Input
             field='searchKeyword'
             prefix={<IconSearch />}
-            placeholder={t('关键字(id或者名称)')}
+            placeholder={t('关键字：ID 或名称')}
             showClear
             pure
             size='small'

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
@@ -57,8 +58,8 @@ func GetSubscriptionSelf(c *gin.Context) {
 
 	common.ApiSuccess(c, gin.H{
 		"billing_preference": pref,
-		"subscriptions":      activeSubscriptions, // all active subscriptions
-		"all_subscriptions":  allSubscriptions,    // all subscriptions including expired
+		"subscriptions":      activeSubscriptions,
+		"all_subscriptions":  allSubscriptions,
 	})
 }
 
@@ -94,11 +95,71 @@ func AdminListSubscriptionPlans(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, plans)
+	result := make([]SubscriptionPlanDTO, 0, len(plans))
+	for _, p := range plans {
+		result = append(result, SubscriptionPlanDTO{
+			Plan: p,
+		})
+	}
+	common.ApiSuccess(c, result)
 }
 
 type AdminUpsertSubscriptionPlanRequest struct {
 	Plan model.SubscriptionPlan `json:"plan"`
+}
+
+func validateSubscriptionPlan(plan *model.SubscriptionPlan) string {
+	if plan == nil {
+		return "参数错误"
+	}
+	if strings.TrimSpace(plan.Title) == "" {
+		return "套餐标题不能为空"
+	}
+	if plan.PriceAmount < 0 {
+		return "价格不能为负数"
+	}
+	if plan.PriceAmount > 9999 {
+		return "价格不能超过9999"
+	}
+	if plan.MaxPurchasePerUser < 0 {
+		return "购买上限不能为负数"
+	}
+	if plan.TotalAmount < 0 {
+		return "总额度不能为负数"
+	}
+
+	plan.UpgradeGroup = strings.TrimSpace(plan.UpgradeGroup)
+	if plan.UpgradeGroup != "" {
+		if _, ok := ratio_setting.GetGroupRatioCopy()[plan.UpgradeGroup]; !ok {
+			return "升级分组不存在"
+		}
+	}
+
+	plan.AvailableGroup = strings.TrimSpace(plan.AvailableGroup)
+	if plan.AvailableGroup != "" {
+		if _, ok := ratio_setting.GetGroupRatioCopy()[plan.AvailableGroup]; !ok {
+			return "可用分组不存在"
+		}
+	}
+
+	plan.QuotaResetPeriod = model.NormalizeResetPeriod(plan.QuotaResetPeriod)
+	if plan.QuotaResetPeriod == model.SubscriptionResetCustom && plan.QuotaResetCustomSeconds <= 0 {
+		return "自定义重置周期需大于0秒"
+	}
+
+	if plan.Currency == "" {
+		plan.Currency = "USD"
+	}
+	plan.Currency = "USD"
+
+	if plan.DurationUnit == "" {
+		plan.DurationUnit = model.SubscriptionDurationMonth
+	}
+	if plan.DurationValue <= 0 && plan.DurationUnit != model.SubscriptionDurationCustom {
+		plan.DurationValue = 1
+	}
+
+	return ""
 }
 
 func AdminCreateSubscriptionPlan(c *gin.Context) {
@@ -108,50 +169,11 @@ func AdminCreateSubscriptionPlan(c *gin.Context) {
 		return
 	}
 	req.Plan.Id = 0
-	if strings.TrimSpace(req.Plan.Title) == "" {
-		common.ApiErrorMsg(c, "套餐标题不能为空")
+	if msg := validateSubscriptionPlan(&req.Plan); msg != "" {
+		common.ApiErrorMsg(c, msg)
 		return
 	}
-	if req.Plan.PriceAmount < 0 {
-		common.ApiErrorMsg(c, "价格不能为负数")
-		return
-	}
-	if req.Plan.PriceAmount > 9999 {
-		common.ApiErrorMsg(c, "价格不能超过9999")
-		return
-	}
-	if req.Plan.Currency == "" {
-		req.Plan.Currency = "USD"
-	}
-	req.Plan.Currency = "USD"
-	if req.Plan.DurationUnit == "" {
-		req.Plan.DurationUnit = model.SubscriptionDurationMonth
-	}
-	if req.Plan.DurationValue <= 0 && req.Plan.DurationUnit != model.SubscriptionDurationCustom {
-		req.Plan.DurationValue = 1
-	}
-	if req.Plan.MaxPurchasePerUser < 0 {
-		common.ApiErrorMsg(c, "购买上限不能为负数")
-		return
-	}
-	if req.Plan.TotalAmount < 0 {
-		common.ApiErrorMsg(c, "总额度不能为负数")
-		return
-	}
-	req.Plan.UpgradeGroup = strings.TrimSpace(req.Plan.UpgradeGroup)
-	if req.Plan.UpgradeGroup != "" {
-		if _, ok := ratio_setting.GetGroupRatioCopy()[req.Plan.UpgradeGroup]; !ok {
-			common.ApiErrorMsg(c, "升级分组不存在")
-			return
-		}
-	}
-	req.Plan.QuotaResetPeriod = model.NormalizeResetPeriod(req.Plan.QuotaResetPeriod)
-	if req.Plan.QuotaResetPeriod == model.SubscriptionResetCustom && req.Plan.QuotaResetCustomSeconds <= 0 {
-		common.ApiErrorMsg(c, "自定义重置周期需大于0秒")
-		return
-	}
-	err := model.DB.Create(&req.Plan).Error
-	if err != nil {
+	if err := model.DB.Create(&req.Plan).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -170,52 +192,13 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 		common.ApiErrorMsg(c, "参数错误")
 		return
 	}
-	if strings.TrimSpace(req.Plan.Title) == "" {
-		common.ApiErrorMsg(c, "套餐标题不能为空")
-		return
-	}
-	if req.Plan.PriceAmount < 0 {
-		common.ApiErrorMsg(c, "价格不能为负数")
-		return
-	}
-	if req.Plan.PriceAmount > 9999 {
-		common.ApiErrorMsg(c, "价格不能超过9999")
-		return
-	}
 	req.Plan.Id = id
-	if req.Plan.Currency == "" {
-		req.Plan.Currency = "USD"
-	}
-	req.Plan.Currency = "USD"
-	if req.Plan.DurationUnit == "" {
-		req.Plan.DurationUnit = model.SubscriptionDurationMonth
-	}
-	if req.Plan.DurationValue <= 0 && req.Plan.DurationUnit != model.SubscriptionDurationCustom {
-		req.Plan.DurationValue = 1
-	}
-	if req.Plan.MaxPurchasePerUser < 0 {
-		common.ApiErrorMsg(c, "购买上限不能为负数")
-		return
-	}
-	if req.Plan.TotalAmount < 0 {
-		common.ApiErrorMsg(c, "总额度不能为负数")
-		return
-	}
-	req.Plan.UpgradeGroup = strings.TrimSpace(req.Plan.UpgradeGroup)
-	if req.Plan.UpgradeGroup != "" {
-		if _, ok := ratio_setting.GetGroupRatioCopy()[req.Plan.UpgradeGroup]; !ok {
-			common.ApiErrorMsg(c, "升级分组不存在")
-			return
-		}
-	}
-	req.Plan.QuotaResetPeriod = model.NormalizeResetPeriod(req.Plan.QuotaResetPeriod)
-	if req.Plan.QuotaResetPeriod == model.SubscriptionResetCustom && req.Plan.QuotaResetCustomSeconds <= 0 {
-		common.ApiErrorMsg(c, "自定义重置周期需大于0秒")
+	if msg := validateSubscriptionPlan(&req.Plan); msg != "" {
+		common.ApiErrorMsg(c, msg)
 		return
 	}
 
 	err := model.DB.Transaction(func(tx *gorm.DB) error {
-		// update plan (allow zero values updates with map)
 		updateMap := map[string]interface{}{
 			"title":                      req.Plan.Title,
 			"subtitle":                   req.Plan.Subtitle,
@@ -231,6 +214,7 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 			"max_purchase_per_user":      req.Plan.MaxPurchasePerUser,
 			"total_amount":               req.Plan.TotalAmount,
 			"upgrade_group":              req.Plan.UpgradeGroup,
+			"available_group":            req.Plan.AvailableGroup,
 			"quota_reset_period":         req.Plan.QuotaResetPeriod,
 			"quota_reset_custom_seconds": req.Plan.QuotaResetCustomSeconds,
 			"updated_at":                 common.GetTimestamp(),
@@ -264,6 +248,51 @@ func AdminUpdateSubscriptionPlanStatus(c *gin.Context) {
 		return
 	}
 	if err := model.DB.Model(&model.SubscriptionPlan{}).Where("id = ?", id).Update("enabled", *req.Enabled).Error; err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	model.InvalidateSubscriptionPlanCache(id)
+	common.ApiSuccess(c, nil)
+}
+
+func AdminDeleteSubscriptionPlan(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	if id <= 0 {
+		common.ApiErrorMsg(c, "无效的ID")
+		return
+	}
+
+	var plan model.SubscriptionPlan
+	if err := model.DB.Select("id").First(&plan, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			common.ApiErrorMsg(c, "套餐不存在")
+			return
+		}
+		common.ApiError(c, err)
+		return
+	}
+
+	var subscriptionCount int64
+	if err := model.DB.Model(&model.UserSubscription{}).Where("plan_id = ?", id).Count(&subscriptionCount).Error; err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if subscriptionCount > 0 {
+		common.ApiErrorMsg(c, "该套餐已有关联订阅记录，无法删除")
+		return
+	}
+
+	var orderCount int64
+	if err := model.DB.Model(&model.SubscriptionOrder{}).Where("plan_id = ?", id).Count(&orderCount).Error; err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if orderCount > 0 {
+		common.ApiErrorMsg(c, "该套餐已有关联订单记录，无法删除")
+		return
+	}
+
+	if err := model.DB.Delete(&plan).Error; err != nil {
 		common.ApiError(c, err)
 		return
 	}

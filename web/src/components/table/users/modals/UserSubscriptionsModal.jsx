@@ -35,6 +35,12 @@ import {
 } from '@douyinfe/semi-illustrations';
 import { API, showError, showSuccess } from '../../../../helpers';
 import { convertUSDToCurrency } from '../../../../helpers/render';
+import {
+  getSubscriptionAvailableGroup,
+  getSubscriptionPlanLabel,
+  getSubscriptionSourceLabel,
+  getSubscriptionStatusMeta,
+} from '../../../../helpers/subscriptionDisplay';
 import { useIsMobile } from '../../../../hooks/common/useIsMobile';
 import CardTable from '../../../common/ui/CardTable';
 
@@ -46,12 +52,7 @@ function formatTs(ts) {
 }
 
 function renderStatusTag(sub, t) {
-  const now = Date.now() / 1000;
-  const end = sub?.end_time || 0;
-  const status = sub?.status || '';
-
-  const isExpiredByTime = end > 0 && end < now;
-  const isActive = status === 'active' && !isExpiredByTime;
+  const { isActive, isCancelled } = getSubscriptionStatusMeta(sub);
   if (isActive) {
     return (
       <Tag color='green' shape='circle' size='small'>
@@ -59,7 +60,7 @@ function renderStatusTag(sub, t) {
       </Tag>
     );
   }
-  if (status === 'cancelled') {
+  if (isCancelled) {
     return (
       <Tag color='grey' shape='circle' size='small'>
         {t('已作废')}
@@ -259,14 +260,25 @@ const UserSubscriptionsModal = ({ visible, onCancel, user, t, onSuccess }) => {
         width: 180,
         render: (_, record) => {
           const sub = record?.subscription;
-          const planId = sub?.plan_id;
-          const title =
-            planTitleMap.get(planId) || (planId ? `#${planId}` : '-');
+          const sourceLabel = getSubscriptionSourceLabel(sub?.source, t);
+          const title = getSubscriptionPlanLabel(
+            sub,
+            record?.plan,
+            planTitleMap,
+            t,
+          );
+          const availableGroup = getSubscriptionAvailableGroup(
+            sub,
+            record?.plan,
+          );
           return (
             <div className='min-w-0'>
               <div className='font-medium truncate'>{title}</div>
               <div className='text-xs text-gray-500'>
-                {t('来源')}: {sub?.source || '-'}
+                {t('来源')}: {sourceLabel}
+              </div>
+              <div className='text-xs text-gray-500 truncate'>
+                {t('可用分组')}: {availableGroup || t('所有分组')}
               </div>
             </div>
           );

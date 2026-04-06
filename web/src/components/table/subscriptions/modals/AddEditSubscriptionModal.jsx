@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Avatar,
   Button,
@@ -39,7 +39,11 @@ import {
   IconSave,
 } from '@douyinfe/semi-icons';
 import { Clock, RefreshCw } from 'lucide-react';
-import { API, showError, showSuccess } from '../../../../helpers';
+import {
+  API,
+  showError,
+  showSuccess,
+} from '../../../../helpers';
 import {
   quotaToDisplayAmount,
   displayAmountToQuota,
@@ -63,6 +67,27 @@ const resetPeriodOptions = [
   { value: 'monthly', label: '每月' },
   { value: 'custom', label: '自定义(秒)' },
 ];
+
+function normalizeGroupOptions(groups, extraGroups = []) {
+  const uniqueGroups = new Set();
+  [...(groups || []), ...(extraGroups || [])].forEach((group) => {
+    const value = typeof group === 'string' ? group.trim() : '';
+    if (value) {
+      uniqueGroups.add(value);
+    }
+  });
+
+  return Array.from(uniqueGroups)
+    .sort((a, b) => {
+      if (a === 'default') return -1;
+      if (b === 'default') return 1;
+      return a.localeCompare(b);
+    })
+    .map((group) => ({
+      label: group,
+      value: group,
+    }));
+}
 
 const AddEditSubscriptionModal = ({
   visible,
@@ -127,6 +152,24 @@ const AddEditSubscriptionModal = ({
       creem_product_id: p.creem_product_id || '',
     };
   };
+
+  const selectGroupOptions = useMemo(
+    () =>
+      normalizeGroupOptions(groupOptions, [
+        editingPlan?.plan?.upgrade_group,
+        editingPlan?.plan?.available_group,
+      ]),
+    [
+      groupOptions,
+      editingPlan?.plan?.upgrade_group,
+      editingPlan?.plan?.available_group,
+    ],
+  );
+
+  const selectableGroupsText = useMemo(
+    () => selectGroupOptions.map((item) => item.value).join(' / '),
+    [selectGroupOptions],
+  );
 
   useEffect(() => {
     if (!visible) return;
@@ -337,12 +380,17 @@ const AddEditSubscriptionModal = ({
                         )}
                       >
                         <Select.Option value=''>{t('不升级')}</Select.Option>
-                        {(groupOptions || []).map((g) => (
-                          <Select.Option key={g} value={g}>
-                            {g}
+                        {selectGroupOptions.map((g) => (
+                          <Select.Option key={g.value} value={g.value}>
+                            {g.label}
                           </Select.Option>
                         ))}
                       </Form.Select>
+                      {selectableGroupsText ? (
+                        <div className='text-xs text-gray-500 mt-1'>
+                          {t('可选分组')}: {selectableGroupsText}
+                        </div>
+                      ) : null}
                     </Col>
 
                     <Col span={12}>
@@ -357,12 +405,17 @@ const AddEditSubscriptionModal = ({
                         )}
                       >
                         <Select.Option value=''>{t('所有分组')}</Select.Option>
-                        {(groupOptions || []).map((g) => (
-                          <Select.Option key={g} value={g}>
-                            {g}
+                        {selectGroupOptions.map((g) => (
+                          <Select.Option key={g.value} value={g.value}>
+                            {g.label}
                           </Select.Option>
                         ))}
                       </Form.Select>
+                      {selectableGroupsText ? (
+                        <div className='text-xs text-gray-500 mt-1'>
+                          {t('可选分组')}: {selectableGroupsText}
+                        </div>
+                      ) : null}
                     </Col>
 
                     <Col span={12}>

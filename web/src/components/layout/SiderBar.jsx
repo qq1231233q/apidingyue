@@ -258,7 +258,8 @@ const SiderBar = ({ onNavigate = () => {} }) => {
             for (let key in chats[i]) {
               let link = chats[i][key];
               if (typeof link !== 'string') continue; // 确保链接是字符串
-              if (link.startsWith('fluent') || link.startsWith('ccswitch')) {
+              const normalizedLink = link.trim().toLowerCase();
+              if (normalizedLink === 'fluentread' || normalizedLink === 'ccswitch') {
                 shouldSkip = true;
                 break;
               }

@@ -35,6 +35,7 @@ func TestMain(m *testing.M) {
 	common.RedisEnabled = false
 	common.BatchUpdateEnabled = false
 	common.LogConsumeEnabled = true
+	model.InitDBColumnNames()
 
 	if err := db.AutoMigrate(
 		&model.Task{},
@@ -215,6 +216,25 @@ func TestRefundTaskQuota_Wallet(t *testing.T) {
 	assert.Equal(t, model.LogTypeRefund, log.Type)
 	assert.Equal(t, preConsumed, log.Quota)
 	assert.Equal(t, "test-model", log.ModelName)
+}
+
+func TestAppendTaskBillingSourceInfo_Wallet(t *testing.T) {
+	other := map[string]interface{}{}
+
+	appendTaskBillingSourceInfo(other, BillingSourceWallet, 0, 123)
+
+	assert.Equal(t, BillingSourceWallet, other["billing_source"])
+	assert.Equal(t, 123, other["wallet_quota_deducted"])
+}
+
+func TestTaskBillingOther_IncludesSubscriptionBillingSource(t *testing.T) {
+	task := makeTask(1, 1, 300, 1, BillingSourceSubscription, 42)
+
+	other := taskBillingOther(task)
+
+	assert.Equal(t, BillingSourceSubscription, other["billing_source"])
+	assert.Equal(t, 42, other["subscription_id"])
+	assert.Equal(t, 0, other["wallet_quota_deducted"])
 }
 
 func TestRefundTaskQuota_Subscription(t *testing.T) {

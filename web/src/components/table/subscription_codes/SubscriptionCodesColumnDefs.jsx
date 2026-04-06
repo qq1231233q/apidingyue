@@ -21,6 +21,7 @@ import React from 'react';
 import { Tag, Button, Space, Popover, Dropdown } from '@douyinfe/semi-ui';
 import { IconMore } from '@douyinfe/semi-icons';
 import { timestamp2string } from '../../../helpers';
+import { formatSubscriptionDuration } from '../../../helpers/subscriptionFormat';
 import {
   SUBSCRIPTION_CODE_STATUS,
   SUBSCRIPTION_CODE_STATUS_MAP,
@@ -64,74 +65,88 @@ const renderStatus = (status, record, t) => {
   );
 };
 
+const renderAvailableGroup = (group, t) => {
+  return (
+    <Tag color='blue' shape='circle'>
+      {group || t('所有分组')}
+    </Tag>
+  );
+};
+
 export const getSubscriptionCodesColumns = ({
   t,
   manageCode,
   copyText,
   setEditingCode,
   setShowEdit,
-  refresh,
-  codes,
-  activePage,
   showDeleteCodeModal,
 }) => {
   return [
     {
       title: t('ID'),
       dataIndex: 'id',
+      width: 80,
     },
     {
       title: t('名称'),
       dataIndex: 'name',
+      width: 180,
     },
     {
       title: t('状态'),
       dataIndex: 'status',
       key: 'status',
-      render: (text, record) => {
-        return <div>{renderStatus(text, record, t)}</div>;
-      },
+      width: 110,
+      render: (text, record) => <div>{renderStatus(text, record, t)}</div>,
     },
     {
       title: t('充值额度'),
       dataIndex: 'quota',
-      render: (text) => {
-        return (
-          <div>
-            <Tag color='grey' shape='circle'>
-              {text}
-            </Tag>
-          </div>
-        );
-      },
+      width: 130,
+      render: (text) => (
+        <Tag color='grey' shape='circle'>
+          {text}
+        </Tag>
+      ),
+    },
+    {
+      title: t('订阅时长'),
+      dataIndex: 'duration_value',
+      width: 160,
+      render: (_, record) => <div>{formatSubscriptionDuration(record, t)}</div>,
+    },
+    {
+      title: t('可用分组'),
+      dataIndex: 'available_group',
+      width: 140,
+      render: (text) => renderAvailableGroup(text, t),
     },
     {
       title: t('创建时间'),
       dataIndex: 'created_time',
-      render: (text) => {
-        return <div>{renderTimestamp(text)}</div>;
-      },
+      width: 180,
+      render: (text) => <div>{renderTimestamp(text)}</div>,
     },
     {
-      title: t('过期时间'),
+      title: t('激活码有效期'),
       dataIndex: 'expired_time',
-      render: (text) => {
-        return <div>{text === 0 ? t('永不过期') : renderTimestamp(text)}</div>;
-      },
+      width: 180,
+      render: (text) => (
+        <div>{text === 0 ? t('永久有效') : renderTimestamp(text)}</div>
+      ),
     },
     {
-      title: t('使用人ID'),
+      title: t('使用用户ID'),
       dataIndex: 'used_user_id',
-      render: (text) => {
-        return <div>{text === 0 ? t('无') : text}</div>;
-      },
+      width: 120,
+      render: (text) => <div>{text === 0 ? t('未使用') : text}</div>,
     },
     {
       title: '',
       dataIndex: 'operate',
       fixed: 'right',
       width: 205,
-      render: (text, record) => {
+      render: (_, record) => {
         const moreMenuItems = [
           {
             node: 'item',
@@ -143,7 +158,10 @@ export const getSubscriptionCodesColumns = ({
           },
         ];
 
-        if (record.status === SUBSCRIPTION_CODE_STATUS.UNUSED && !isExpired(record)) {
+        if (
+          record.status === SUBSCRIPTION_CODE_STATUS.UNUSED &&
+          !isExpired(record)
+        ) {
           moreMenuItems.push({
             node: 'item',
             name: t('禁用'),
@@ -166,11 +184,7 @@ export const getSubscriptionCodesColumns = ({
 
         return (
           <Space>
-            <Popover
-              content={record.key}
-              style={{ padding: 20 }}
-              position='top'
-            >
+            <Popover content={record.key} style={{ padding: 20 }} position='top'>
               <Button type='tertiary' size='small'>
                 {t('查看')}
               </Button>

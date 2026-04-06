@@ -1,6 +1,9 @@
 package setting
 
 import (
+	"slices"
+	"sync"
+
 	"github.com/QuantumNous/new-api/common"
 )
 
@@ -8,9 +11,14 @@ var autoGroups = []string{
 	"default",
 }
 
+var autoGroupsMutex sync.RWMutex
+
 var DefaultUseAutoGroup = false
 
 func ContainsAutoGroup(group string) bool {
+	autoGroupsMutex.RLock()
+	defer autoGroupsMutex.RUnlock()
+
 	for _, autoGroup := range autoGroups {
 		if autoGroup == group {
 			return true
@@ -20,11 +28,21 @@ func ContainsAutoGroup(group string) bool {
 }
 
 func UpdateAutoGroupsByJsonString(jsonString string) error {
-	autoGroups = make([]string, 0)
-	return common.Unmarshal([]byte(jsonString), &autoGroups)
+	nextAutoGroups := make([]string, 0)
+	if err := common.Unmarshal([]byte(jsonString), &nextAutoGroups); err != nil {
+		return err
+	}
+
+	autoGroupsMutex.Lock()
+	autoGroups = nextAutoGroups
+	autoGroupsMutex.Unlock()
+	return nil
 }
 
 func AutoGroups2JsonString() string {
+	autoGroupsMutex.RLock()
+	defer autoGroupsMutex.RUnlock()
+
 	jsonBytes, err := common.Marshal(autoGroups)
 	if err != nil {
 		return "[]"
@@ -33,5 +51,8 @@ func AutoGroups2JsonString() string {
 }
 
 func GetAutoGroups() []string {
-	return autoGroups
+	autoGroupsMutex.RLock()
+	defer autoGroupsMutex.RUnlock()
+
+	return slices.Clone(autoGroups)
 }

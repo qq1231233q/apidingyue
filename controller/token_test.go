@@ -12,6 +12,8 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -88,6 +90,24 @@ func seedToken(t *testing.T, db *gorm.DB, userID int, name string, rawKey string
 		t.Fatalf("failed to create token: %v", err)
 	}
 	return token
+}
+
+func configureTokenGroupValidationForTest(t *testing.T) {
+	t.Helper()
+
+	originalGroupRatio := ratio_setting.GroupRatio2JSONString()
+	originalAutoGroups := setting.AutoGroups2JsonString()
+	t.Cleanup(func() {
+		_ = ratio_setting.UpdateGroupRatioByJSONString(originalGroupRatio)
+		_ = setting.UpdateAutoGroupsByJsonString(originalAutoGroups)
+	})
+
+	if err := ratio_setting.UpdateGroupRatioByJSONString(`{"default":1,"vip":1.5}`); err != nil {
+		t.Fatalf("failed to configure group ratio: %v", err)
+	}
+	if err := setting.UpdateAutoGroupsByJsonString(`["vip"]`); err != nil {
+		t.Fatalf("failed to configure auto groups: %v", err)
+	}
 }
 
 func newAuthenticatedContext(t *testing.T, method string, target string, body any, userID int) (*gin.Context, *httptest.ResponseRecorder) {
@@ -237,6 +257,141 @@ func TestUpdateTokenMasksKeyInResponse(t *testing.T) {
 	}
 	if strings.Contains(recorder.Body.String(), token.Key) {
 		t.Fatalf("update response leaked raw token key: %s", recorder.Body.String())
+	}
+}
+
+func TestAddTokenAllowsConfiguredGroup(t *testing.T) {
+	setupTokenControllerTestDB(t)
+
+	body := map[string]any{
+		"name":                 "vip-token",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "vip",
+		"cross_group_retry":    false,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	if !response.Success {
+		t.Fatalf("expected add token to accept configured group, got message: %s", response.Message)
+	}
+}
+
+func TestAddTokenRejectsInvalidGroup(t *testing.T) {
+	setupTokenControllerTestDB(t)
+
+	body := map[string]any{
+		"name":                 "invalid-group-token",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "missing-group",
+		"cross_group_retry":    false,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	if response.Success {
+		t.Fatalf("expected add token to reject invalid group")
+	}
+	if !strings.Contains(response.Message, "missing-group") {
+		t.Fatalf("expected error message to mention invalid group, got %q", response.Message)
+	}
+}
+
+func TestAddTokenClearsCrossGroupRetryForNonAutoGroup(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	configureTokenGroupValidationForTest(t)
+
+	body := map[string]any{
+		"name":                 "default-token",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    true,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPost, "/api/token/", body, 1)
+	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	if !response.Success {
+		t.Fatalf("expected add token to succeed, got message: %s", response.Message)
+	}
+
+	var saved model.Token
+	if err := db.Where("user_id = ?", 1).First(&saved).Error; err != nil {
+		t.Fatalf("failed to load saved token: %v", err)
+	}
+	if saved.CrossGroupRetry {
+		t.Fatal("expected cross_group_retry to be cleared for non-auto token")
+	}
+}
+
+func TestUpdateTokenClearsCrossGroupRetryWhenGroupIsNotAuto(t *testing.T) {
+	db := setupTokenControllerTestDB(t)
+	configureTokenGroupValidationForTest(t)
+
+	token := &model.Token{
+		UserId:             1,
+		Name:               "auto-token",
+		Key:                "auto1234token5678",
+		Status:             common.TokenStatusEnabled,
+		CreatedTime:        1,
+		AccessedTime:       1,
+		ExpiredTime:        -1,
+		RemainQuota:        100,
+		UnlimitedQuota:     true,
+		Group:              "auto",
+		CrossGroupRetry:    true,
+		ModelLimitsEnabled: false,
+	}
+	if err := db.Create(token).Error; err != nil {
+		t.Fatalf("failed to create auto token: %v", err)
+	}
+
+	body := map[string]any{
+		"id":                   token.Id,
+		"name":                 "default-token",
+		"expired_time":         -1,
+		"remain_quota":         100,
+		"unlimited_quota":      true,
+		"model_limits_enabled": false,
+		"model_limits":         "",
+		"group":                "default",
+		"cross_group_retry":    true,
+	}
+
+	ctx, recorder := newAuthenticatedContext(t, http.MethodPut, "/api/token/", body, 1)
+	UpdateToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	if !response.Success {
+		t.Fatalf("expected update token to succeed, got message: %s", response.Message)
+	}
+
+	var saved model.Token
+	if err := db.First(&saved, token.Id).Error; err != nil {
+		t.Fatalf("failed to reload token: %v", err)
+	}
+	if saved.Group != "default" {
+		t.Fatalf("expected token group to be updated to default, got %q", saved.Group)
+	}
+	if saved.CrossGroupRetry {
+		t.Fatal("expected cross_group_retry to be cleared when token group is not auto")
 	}
 }
 
