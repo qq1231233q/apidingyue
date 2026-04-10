@@ -233,7 +233,7 @@ const SecureVerificationModal = ({
           )}
 
           {hasPasskey && passkeySupported && (
-            <TabPane tab={t('Passkey')} itemKey='passkey'>
+            <TabPane tab={t('通行密钥（Passkey）')} itemKey='passkey'>
               <div style={{ paddingTop: '20px' }}>
                 <div
                   style={{

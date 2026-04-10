@@ -374,7 +374,7 @@ export const getMjLogsColumns = ({
     },
     {
       key: COLUMN_KEYS.TASK_ID,
-      title: t('任务ID'),
+      title: t('任务 ID'),
       dataIndex: 'mj_id',
       render: (text, record, index) => {
         return <div>{text}</div>;

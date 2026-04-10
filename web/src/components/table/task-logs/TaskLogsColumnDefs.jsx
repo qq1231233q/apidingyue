@@ -131,7 +131,7 @@ const renderType = (type, t) => {
     case TASK_ACTION_REMIX_GENERATE:
       return (
         <Tag color='blue' shape='circle' prefixIcon={<Sparkles size={14} />}>
-          {t('视频Remix')}
+          {t('视频混剪')}
         </Tag>
       );
     default:
@@ -332,7 +332,7 @@ export const getTaskLogsColumns = ({
     },
     {
       key: COLUMN_KEYS.TASK_ID,
-      title: t('任务ID'),
+      title: t('任务 ID'),
       dataIndex: 'task_id',
       render: (text, record, index) => {
         return (

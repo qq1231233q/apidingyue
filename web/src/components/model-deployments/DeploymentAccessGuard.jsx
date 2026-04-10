@@ -221,7 +221,7 @@ const DeploymentAccessGuard = ({
                       color: 'var(--semi-color-text-1)',
                     }}
                   >
-                    {t('配置有效的 io.net API Key')}
+                    {t('配置有效的 io.net API 密钥')}
                   </Text>
                 </div>
               </div>

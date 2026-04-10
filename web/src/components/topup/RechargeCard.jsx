@@ -97,6 +97,8 @@ const RechargeCard = ({
   activeSubscriptions = [],
   allSubscriptions = [],
   reloadSubscriptionSelf,
+  forceSubscriptionTab = false,
+  onSubscriptionViewConsumed,
 }) => {
   const onlineFormApiRef = useRef(null);
   const initialTabSetRef = useRef(false);
@@ -120,6 +122,14 @@ const RechargeCard = ({
       setActiveTab('topup');
     }
   }, [shouldShowSubscription, activeTab]);
+
+  useEffect(() => {
+    if (!forceSubscriptionTab) {
+      return;
+    }
+    setActiveTab('subscription');
+    onSubscriptionViewConsumed?.();
+  }, [forceSubscriptionTab, onSubscriptionViewConsumed]);
   const topupContent = (
     <Space vertical style={{ width: '100%' }}>
       {/* 统计数据 */}

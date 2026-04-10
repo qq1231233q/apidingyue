@@ -101,7 +101,7 @@ export const useDashboardStats = (
             trendColor: '#f59e0b',
           },
           {
-            title: t('统计Tokens'),
+            title: t('统计 Token 数'),
             value: isNaN(consumeTokens) ? 0 : consumeTokens.toLocaleString(),
             icon: <IconTextStroked />,
             avatarColor: 'pink',
@@ -115,7 +115,7 @@ export const useDashboardStats = (
         color: 'bg-indigo-50',
         items: [
           {
-            title: t('平均RPM'),
+            title: t('平均每分钟请求数（RPM）'),
             value: performanceMetrics.avgRPM,
             icon: <IconStopwatchStroked />,
             avatarColor: 'indigo',
@@ -123,7 +123,7 @@ export const useDashboardStats = (
             trendColor: '#6366f1',
           },
           {
-            title: t('平均TPM'),
+            title: t('平均每分钟 Token 数（TPM）'),
             value: performanceMetrics.avgTPM,
             icon: <IconTypograph />,
             avatarColor: 'orange',

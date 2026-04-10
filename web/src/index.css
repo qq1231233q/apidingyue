@@ -927,6 +927,25 @@ html.dark .with-pastel-balls::before {
   padding: 10px !important;
 }
 
+/* ==================== 弹窗按钮间距优化 ==================== */
+.semi-modal-footer {
+  display: flex;
+  gap: 12px;
+}
+
+.semi-modal-footer .semi-button + .semi-button {
+  margin-left: 0 !important;
+}
+
+.semi-popconfirm .semi-popconfirm-footer {
+  display: flex;
+  gap: 10px;
+}
+
+.semi-popconfirm .semi-popconfirm-footer .semi-button + .semi-button {
+  margin-left: 0 !important;
+}
+
 /* ==================== 使用日志: channel affinity tag ==================== */
 .semi-tag.channel-affinity-tag {
   border: 1px solid rgba(var(--semi-cyan-5), 0.35);

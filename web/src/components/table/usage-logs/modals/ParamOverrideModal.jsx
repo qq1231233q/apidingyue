@@ -164,7 +164,7 @@ const ParamOverrideModal = ({
               ) : null}
               {paramOverrideTarget?.requestId ? (
                 <Text type='tertiary' size='small'>
-                  {t('Request ID')}: {paramOverrideTarget.requestId}
+                  {t('请求 ID')}: {paramOverrideTarget.requestId}
                 </Text>
               ) : null}
               {paramOverrideTarget?.requestPath ? (

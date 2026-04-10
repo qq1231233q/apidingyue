@@ -93,6 +93,7 @@ const TopUp = () => {
 
   // 账单Modal状态
   const [openHistory, setOpenHistory] = useState(false);
+  const [forceSubscriptionView, setForceSubscriptionView] = useState(false);
 
   // 订阅相关
   const [subscriptionPlans, setSubscriptionPlans] = useState([]);
@@ -159,7 +160,7 @@ const TopUp = () => {
   const preTopUp = async (payment) => {
     if (payment === 'stripe') {
       if (!enableStripeTopUp) {
-        showError(t('管理员未开启Stripe充值！'));
+        showError(t('管理员未开启 Stripe 充值！'));
         return;
       }
     } else {
@@ -574,8 +575,15 @@ const TopUp = () => {
   useEffect(() => {
     if (searchParams.get('show_history') === 'true') {
       setOpenHistory(true);
-      searchParams.delete('show_history');
-      setSearchParams(searchParams, { replace: true });
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('show_history');
+      setSearchParams(nextParams, { replace: true });
+    }
+    if (searchParams.get('view') === 'subscription') {
+      setForceSubscriptionView(true);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('view');
+      setSearchParams(nextParams, { replace: true });
     }
   }, []);
 
@@ -826,6 +834,8 @@ const TopUp = () => {
           activeSubscriptions={activeSubscriptions}
           allSubscriptions={allSubscriptions}
           reloadSubscriptionSelf={getSubscriptionSelf}
+          forceSubscriptionTab={forceSubscriptionView}
+          onSubscriptionViewConsumed={() => setForceSubscriptionView(false)}
         />
         <InvitationCard
           t={t}

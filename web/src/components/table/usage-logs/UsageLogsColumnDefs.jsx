@@ -80,8 +80,8 @@ function buildChannelAffinityTooltip(affinity, t) {
     t('渠道亲和性'),
     `${t('规则')}：${affinity.rule_name || '-'}`,
     `${t('分组')}：${affinity.selected_group || '-'}`,
-    `${t('Key')}：${keyText}`,
-    ...(keyHint ? [`${t('Key 摘要')}：${keyHint}`] : []),
+    `${t('密钥')}：${keyText}`,
+    ...(keyHint ? [`${t('密钥摘要')}：${keyHint}`] : []),
   ];
 
   return (

@@ -152,7 +152,7 @@ const ChannelAffinityUsageCacheModal = ({
       data.push({ key: t('分组'), value: usingGroup });
     }
     if (hasTextValue(keyHint)) {
-      data.push({ key: t('Key 摘要'), value: keyHint });
+      data.push({ key: t('密钥摘要'), value: keyHint });
     }
     if (hasTextValue(keyFp)) {
       data.push({ key: t('Key 指纹'), value: keyFp });
@@ -169,22 +169,22 @@ const ChannelAffinityUsageCacheModal = ({
 
     if (supportsTokenStats) {
       if (promptTokens > 0) {
-        data.push({ key: t('Prompt tokens'), value: promptTokens });
+        data.push({ key: t('提示词令牌'), value: promptTokens });
       }
       if (promptTokens > 0 || cachedTokens > 0) {
         data.push({
-          key: t('Cached tokens'),
+          key: t('缓存令牌'),
           value: `${cachedTokens} (${formatCachedTokenRate(cachedTokens, promptTokens, cachedTokenRateMode)})`,
         });
       }
       if (promptCacheHitTokens > 0) {
-        data.push({ key: t('Prompt cache hit tokens'), value: promptCacheHitTokens });
+        data.push({ key: t('提示词缓存命中令牌'), value: promptCacheHitTokens });
       }
       if (completionTokens > 0) {
-        data.push({ key: t('Completion tokens'), value: completionTokens });
+        data.push({ key: t('补全令牌'), value: completionTokens });
       }
       if (totalTokens > 0) {
-        data.push({ key: t('Total tokens'), value: totalTokens });
+        data.push({ key: t('总令牌'), value: totalTokens });
       }
     }
 
@@ -206,18 +206,18 @@ const ChannelAffinityUsageCacheModal = ({
         <div style={{ marginBottom: 12 }}>
           <Text type='tertiary' size='small'>
             {t(
-              '命中判定：usage 中存在 cached tokens（例如 cached_tokens/prompt_cache_hit_tokens）即视为命中。',
+              '命中判定：usage 中存在缓存令牌（例如 cached_tokens/prompt_cache_hit_tokens）即视为命中。',
             )}
             {' '}
             {t(
-              'Cached tokens 占比口径由后端返回：Claude 语义按 cached/(prompt+cached)，其余按 cached/prompt。',
+              '缓存令牌占比口径由后端返回：Claude 语义按 cached/(prompt+cached)，其余按 cached/prompt。',
             )}
             {' '}
-            {t('当前仅 OpenAI / Claude 语义支持缓存 token 统计，其他通道将隐藏 token 相关字段。')}
+            {t('当前仅 OpenAI / Claude 语义支持缓存令牌统计，其他通道将隐藏令牌相关字段。')}
             {stats && !supportsTokenStats ? (
               <>
                 {' '}
-                {t('该记录不包含可用的 token 统计口径。')}
+                {t('该记录不包含可用的令牌统计口径。')}
               </>
             ) : null}
           </Text>

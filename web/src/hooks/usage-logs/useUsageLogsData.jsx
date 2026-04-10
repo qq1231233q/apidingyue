@@ -389,7 +389,7 @@ export const useLogsData = () => {
       }
       if (logs[i].request_id) {
         expandDataLocal.push({
-          key: t('Request ID'),
+          key: t('请求 ID'),
           value: logs[i].request_id,
         });
       }
@@ -411,18 +411,18 @@ export const useLogsData = () => {
           value: other.text_output,
         });
       }
-      if (other?.cache_tokens > 0) {
-        expandDataLocal.push({
-          key: t('缓存 Tokens'),
-          value: other.cache_tokens,
-        });
-      }
-      if (other?.cache_creation_tokens > 0) {
-        expandDataLocal.push({
-          key: t('缓存创建 Tokens'),
-          value: other.cache_creation_tokens,
-        });
-      }
+        if (other?.cache_tokens > 0) {
+          expandDataLocal.push({
+            key: t('缓存 Token 数'),
+            value: other.cache_tokens,
+          });
+        }
+        if (other?.cache_creation_tokens > 0) {
+          expandDataLocal.push({
+            key: t('缓存创建 Token 数'),
+            value: other.cache_creation_tokens,
+          });
+        }
       if (logs[i].type === 2) {
         expandDataLocal.push({
           key: t('日志详情'),
@@ -572,7 +572,7 @@ export const useLogsData = () => {
         }
         if (other?.reasoning_effort) {
           expandDataLocal.push({
-            key: t('Reasoning Effort'),
+            key: t('推理强度'),
             value: other.reasoning_effort,
           });
         }
@@ -580,7 +580,7 @@ export const useLogsData = () => {
       if (logs[i].type === 6) {
         if (other?.task_id) {
           expandDataLocal.push({
-            key: t('任务ID'),
+            key: t('任务 ID'),
             value: other.task_id,
           });
         }
