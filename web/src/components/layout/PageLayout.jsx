@@ -152,6 +152,11 @@ const PageLayout = () => {
         overflow: isMobile ? 'visible' : 'hidden',
       }}
     >
+      <div className='app-shell-bg' aria-hidden='true' />
+      <div className='app-shell-grid' aria-hidden='true' />
+      <div className='app-shell-orb app-shell-orb-a' aria-hidden='true' />
+      <div className='app-shell-orb app-shell-orb-b' aria-hidden='true' />
+      <div className='app-shell-orb app-shell-orb-c' aria-hidden='true' />
       <Header
         style={{
           padding: 0,
@@ -169,6 +174,7 @@ const PageLayout = () => {
         />
       </Header>
       <Layout
+        className='app-shell-main'
         style={{
           overflow: isMobile ? 'visible' : 'auto',
           display: 'flex',
@@ -196,6 +202,7 @@ const PageLayout = () => {
           </Sider>
         )}
         <Layout
+          className='app-shell-body'
           style={{
             marginLeft: isMobile
               ? '0'
@@ -208,6 +215,7 @@ const PageLayout = () => {
           }}
         >
           <Content
+            className='app-shell-content'
             style={{
               flex: '1 0 auto',
               overflowY: isMobile ? 'visible' : 'hidden',
@@ -220,6 +228,7 @@ const PageLayout = () => {
           </Content>
           {!shouldHideFooter && (
             <Layout.Footer
+              className='app-shell-footer'
               style={{
                 flex: '0 0 auto',
                 width: '100%',

@@ -28,12 +28,19 @@ body {
   font-family: Lato, 'Helvetica Neue', Arial, Helvetica, 'Microsoft YaHei',
     sans-serif;
   color: var(--semi-color-text-0);
-  background-color: var(--semi-color-bg-0);
+  background:
+    radial-gradient(circle at 20% 18%, rgba(123, 205, 255, 0.34), transparent 42%),
+    radial-gradient(circle at 82% 12%, rgba(105, 171, 255, 0.24), transparent 38%),
+    linear-gradient(160deg, #f6fbff 0%, #d8ecff 48%, #cae4ff 100%);
+  background-attachment: fixed;
 }
 
 .app-layout {
   height: 100vh;
   height: 100dvh;
+  position: relative;
+  isolation: isolate;
+  background: transparent !important;
 }
 
 .app-sider {
@@ -930,20 +937,32 @@ html.dark .with-pastel-balls::before {
 /* ==================== 弹窗按钮间距优化 ==================== */
 .semi-modal-footer {
   display: flex;
-  gap: 12px;
+  gap: 16px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .semi-modal-footer .semi-button + .semi-button {
   margin-left: 0 !important;
 }
 
+.semi-modal-footer .semi-button {
+  min-width: 96px;
+}
+
 .semi-popconfirm .semi-popconfirm-footer {
   display: flex;
-  gap: 10px;
+  gap: 14px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .semi-popconfirm .semi-popconfirm-footer .semi-button + .semi-button {
   margin-left: 0 !important;
+}
+
+.semi-popconfirm .semi-popconfirm-footer .semi-button {
+  min-width: 88px;
 }
 
 /* ==================== 使用日志: channel affinity tag ==================== */
@@ -1012,4 +1031,128 @@ html.dark .with-pastel-balls::before {
     transform: translateX(0);
     opacity: 1;
   }
+}
+
+/* ==================== App Shell 科技背景 ==================== */
+.app-shell-bg,
+.app-shell-grid,
+.app-shell-orb {
+  pointer-events: none;
+  position: fixed;
+}
+
+.app-shell-bg {
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(123, 205, 255, 0.34), transparent 42%),
+    radial-gradient(circle at 82% 12%, rgba(105, 171, 255, 0.24), transparent 38%),
+    linear-gradient(160deg, #f6fbff 0%, #d8ecff 48%, #cae4ff 100%);
+}
+
+.app-shell-grid {
+  inset: 0;
+  z-index: 0;
+}
+
+.app-shell-grid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(84, 149, 226, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(84, 149, 226, 0.12) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 1), rgba(0, 0, 0, 0));
+  animation: app-shell-grid-flow 12s linear infinite;
+}
+
+.app-shell-orb {
+  border-radius: 9999px;
+  filter: blur(10px);
+  z-index: 0;
+  animation: app-shell-orb-float 8s ease-in-out infinite;
+}
+
+.app-shell-orb-a {
+  width: 260px;
+  height: 260px;
+  top: 90px;
+  left: -70px;
+  background: rgba(127, 211, 255, 0.32);
+}
+
+.app-shell-orb-b {
+  width: 220px;
+  height: 220px;
+  top: 140px;
+  right: -40px;
+  background: rgba(111, 167, 255, 0.24);
+  animation-delay: 1.2s;
+}
+
+.app-shell-orb-c {
+  width: 150px;
+  height: 150px;
+  bottom: 80px;
+  left: 28%;
+  background: rgba(123, 232, 255, 0.26);
+  animation-delay: 2.2s;
+}
+
+.app-shell-main,
+.app-shell-body,
+.app-shell-content,
+.app-shell-footer,
+.app-layout .semi-layout,
+.app-layout .semi-layout-content {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+
+@keyframes app-shell-grid-flow {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(42px);
+  }
+}
+
+@keyframes app-shell-orb-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-18px) scale(1.05);
+  }
+}
+
+.page-tech-shell {
+  background:
+    radial-gradient(circle at 20% 18%, rgba(123, 205, 255, 0.34), transparent 42%),
+    radial-gradient(circle at 82% 12%, rgba(105, 171, 255, 0.24), transparent 38%),
+    linear-gradient(160deg, #f6fbff 0%, #d8ecff 48%, #cae4ff 100%);
+  isolation: isolate;
+}
+
+.page-tech-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(84, 149, 226, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(84, 149, 226, 0.12) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 1), rgba(0, 0, 0, 0));
+  animation: app-shell-grid-flow 12s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.page-tech-shell > * {
+  position: relative;
+  z-index: 1;
 }

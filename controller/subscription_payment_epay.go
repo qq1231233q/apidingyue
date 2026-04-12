@@ -3,7 +3,6 @@ package controller
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -61,16 +60,8 @@ func SubscriptionRequestEpay(c *gin.Context) {
 	}
 
 	callBackAddress := service.GetCallbackAddress()
-	returnUrl, err := url.Parse(callBackAddress + "/api/subscription/epay/return")
-	if err != nil {
-		common.ApiErrorMsg(c, "回调地址配置错误")
-		return
-	}
-	notifyUrl, err := url.Parse(callBackAddress + "/api/subscription/epay/notify")
-	if err != nil {
-		common.ApiErrorMsg(c, "回调地址配置错误")
-		return
-	}
+	returnUrl := service.BuildAbsoluteURL(callBackAddress, "/api/subscription/epay/return")
+	notifyUrl := service.BuildAbsoluteURL(callBackAddress, "/api/subscription/epay/notify")
 
 	tradeNo := fmt.Sprintf("%s%d", common.GetRandomString(6), time.Now().Unix())
 	tradeNo = fmt.Sprintf("SUBUSR%dNO%s", userId, tradeNo)
@@ -108,7 +99,8 @@ func SubscriptionRequestEpay(c *gin.Context) {
 		common.ApiErrorMsg(c, "拉起支付失败")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "success", "data": params, "url": uri})
+	payURL := service.ResolveFrontendPayURL(operation_setting.PayAddress, uri)
+	c.JSON(http.StatusOK, gin.H{"message": "success", "data": params, "url": payURL})
 }
 
 func SubscriptionEpayNotify(c *gin.Context) {

@@ -269,7 +269,15 @@ const SetupWizard = () => {
   };
 
   return (
-    <div className='min-h-screen flex items-center justify-center px-4'>
+    <div className='page-tech-shell relative min-h-screen overflow-hidden flex items-center justify-center px-4 py-12'>
+      <div
+        className='blur-ball blur-ball-indigo'
+        style={{ top: '-80px', right: '-80px', transform: 'none' }}
+      />
+      <div
+        className='blur-ball blur-ball-teal'
+        style={{ top: '50%', left: '-120px' }}
+      />
       <div className='w-full max-w-4xl'>
         <Card className='!rounded-2xl shadow-sm border-0'>
           <div className='mb-4'>

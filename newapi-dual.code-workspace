@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "name": "newAPI开源代码",
+      "path": "."
+    },
+    {
+      "name": "NEW-API-proxy-main",
+      "path": "../NEW-API-proxy-main"
+    }
+  ],
+  "settings": {
+    "cline.enableToolUse": false,
+    "cline.nativeToolCall": false,
+    "cline.parallelToolCall": false
+  }
+}
