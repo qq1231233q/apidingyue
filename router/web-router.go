@@ -24,6 +24,9 @@ func SetWebRouter(router *gin.Engine, buildFS embed.FS, indexPage []byte) {
 			controller.RelayNotFound(c)
 			return
 		}
+		if c.Request.Method == http.MethodGet && c.Request.URL.Path == "/register" {
+			controller.LockInviteBindingForRegisterEntry(c)
+		}
 		c.Header("Cache-Control", "no-cache")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", indexPage)
 	})

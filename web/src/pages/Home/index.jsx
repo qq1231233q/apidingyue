@@ -486,53 +486,6 @@ const Home = () => {
                 </div>
               </div>
 
-              <div className='rounded-2xl border border-[#9ac8ff] bg-white/85 p-5'>
-                <div className='flex items-center justify-between flex-wrap gap-3'>
-                  <Text className='!text-[#4a6793] !font-medium'>大模型连通率检测</Text>
-                  <Button
-                    type='primary'
-                    theme='solid'
-                    icon={<IconRefresh />}
-                    loading={checkingConnectivity}
-                    onClick={checkConnectivity}
-                    className='!rounded-full !px-6'
-                  >
-                    {checkingConnectivity ? '检测中...' : '检查大模型连通率'}
-                  </Button>
-                </div>
-                <div className='mt-3 text-sm text-[#3e5f8c]'>{connectivitySummary}</div>
-                <div className='mt-2'>
-                  连通率：
-                  <span className='ml-2 text-xl font-bold text-[#1771e6]'>
-                    {connectivityRate === null ? '--' : `${connectivityRate}%`}
-                  </span>
-                </div>
-                <div className='mt-3 space-y-2'>
-                  {connectivityDetails.map((item) => (
-                    <div
-                      key={item.key}
-                      className='text-sm flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-[#f2f8ff]'
-                    >
-                      <span className='text-[#355783]'>{item.name}</span>
-                      <span
-                        className={`font-medium ${
-                          item.ok === null
-                            ? 'text-[#6b89b5]'
-                            : item.ok
-                              ? 'text-[#11a379]'
-                              : 'text-[#da5656]'
-                        }`}
-                      >
-                        {item.ok === null
-                          ? item.reason
-                          : `${item.reason}${item.status ? ` · ${item.status}` : ''}${
-                              item.latency ? ` · ${item.latency}ms` : ''
-                            }`}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -588,6 +541,56 @@ const Home = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className='mt-10'>
+            <div className='rounded-2xl border border-[#9ac8ff] bg-white/85 p-5'>
+              <div className='flex items-center justify-between flex-wrap gap-3'>
+                <Text className='!text-[#4a6793] !font-medium'>大模型连通率检测</Text>
+                <Button
+                  type='primary'
+                  theme='solid'
+                  icon={<IconRefresh />}
+                  loading={checkingConnectivity}
+                  onClick={checkConnectivity}
+                  className='!rounded-full !px-6'
+                >
+                  {checkingConnectivity ? '检测中...' : '检查大模型连通率'}
+                </Button>
+              </div>
+              <div className='mt-3 text-sm text-[#3e5f8c]'>{connectivitySummary}</div>
+              <div className='mt-2'>
+                连通率：
+                <span className='ml-2 text-xl font-bold text-[#1771e6]'>
+                  {connectivityRate === null ? '--' : `${connectivityRate}%`}
+                </span>
+              </div>
+              <div className='mt-3 space-y-2'>
+                {connectivityDetails.map((item) => (
+                  <div
+                    key={item.key}
+                    className='text-sm flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-[#f2f8ff]'
+                  >
+                    <span className='text-[#355783]'>{item.name}</span>
+                    <span
+                      className={`font-medium ${
+                        item.ok === null
+                          ? 'text-[#6b89b5]'
+                          : item.ok
+                            ? 'text-[#11a379]'
+                            : 'text-[#da5656]'
+                      }`}
+                    >
+                      {item.ok === null
+                        ? item.reason
+                        : `${item.reason}${item.status ? ` · ${item.status}` : ''}${
+                            item.latency ? ` · ${item.latency}ms` : ''
+                          }`}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 

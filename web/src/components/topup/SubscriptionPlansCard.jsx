@@ -312,14 +312,6 @@ const SubscriptionPlansCard = ({
             <div className='flex items-center justify-between mb-2 gap-3'>
               <div className='flex items-center gap-2 flex-1 min-w-0'>
                 <Text strong>{t('我的订阅')}</Text>
-                <Button
-                  size='default'
-                  theme='solid'
-                  type='warning'
-                  onClick={() => setShowRedeemModal(true)}
-                >
-                  {t('兑换激活码')}
-                </Button>
                 {hasActiveSubscription ? (
                   <Tag
                     color='white'

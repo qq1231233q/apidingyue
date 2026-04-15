@@ -167,8 +167,7 @@ func Register(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserExists)
 		return
 	}
-	affCode := user.AffCode // this code is the inviter's code, not the user's own code
-	inviterId, _ := model.GetUserIdByAffCode(affCode)
+	inviterId, affCode := resolveInviteBinding(c)
 	cleanUser := model.User{
 		Username:    user.Username,
 		Password:    user.Password,
@@ -183,6 +182,8 @@ func Register(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	common.SysLog(fmt.Sprintf("register success username=%q inviter_id=%d aff_code=%q ip=%s ua=%q", cleanUser.Username, inviterId, affCode, c.ClientIP(), c.Request.UserAgent()))
+	clearInviteBinding(c)
 
 	// 获取插入后的用户ID
 	var insertedUser model.User
